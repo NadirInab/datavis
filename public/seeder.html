@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Database Seeder</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Database Seeder</h1>
+      </div>
+
+      <!-- Database Status -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Database Status</h2>
+        <div id="db-status" class="text-sm text-gray-500">
+          Loading database status...
+        </div>
+      </div>
+
+      <!-- Seeder Operations -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Seeder Operations</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button data-type="subscription-plans" class="seeder-btn bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            Seed Subscription Plans
+          </button>
+          <button data-type="sample-users" data-options='{"count": 10}' class="seeder-btn bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            Seed Sample Users (10)
+          </button>
+          <button data-type="sample-files" data-options='{"count": 20}' class="seeder-btn bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            Seed Sample Files (20)
+          </button>
+          <button data-type="usage-data" data-options='{"days": 30}' class="seeder-btn bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            Seed Usage Data (30 days)
+          </button>
+          <button data-type="all" class="seeder-btn bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 md:col-span-2">
+            Seed All Data
+          </button>
+          <button data-type="clear" data-collection="all" class="seeder-btn bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 md:col-span-2">
+            Clear Database
+          </button>
+        </div>
+      </div>
+
+      <!-- Operation Results -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Operation Results</h2>
+        <div id="operation-status" class="hidden mb-4 p-4 rounded-md"></div>
+        <pre id="operation-results" class="bg-gray-100 p-4 rounded-md text-sm overflow-auto max-h-96"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // API base URL
+    const API_BASE = 'http://localhost:5000/api/v1';
+    
+    // DOM Elements
+    const dbStatus = document.getElementById('db-status');
+    const operationStatus = document.getElementById('operation-status');
+    const operationResults = document.getElementById('operation-results');
+    const seederButtons = document.querySelectorAll('.seeder-btn');
+    
+    // Fetch database status on page load
+    document.addEventListener('DOMContentLoaded', fetchDatabaseStatus);
+    
+    // Fetch database status
+    async function fetchDatabaseStatus() {
+      try {
+        // Get token from localStorage if available
+        const token = localStorage.getItem('authToken');
+        const headers = {};
+        
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(`${API_BASE}/admin/db/stats`, {
+          headers: headers
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            // Format and display database stats
+            let statsHtml = '<div class="grid grid-cols-1 md:grid-cols-3 gap-4">';
+            
+            // Users stats
+            statsHtml += `
+              <div class="border rounded-md p-3">
+                <h3 class="font-medium text-gray-700">Users</h3>
+                <p class="text-2xl font-bold">${data.data.users?.count || 0}</p>
+                <p class="text-xs text-gray-500">Admin: ${data.data.users?.adminCount || 0} | Regular: ${data.data.users?.regularCount || 0}</p>
+              </div>
+            `;
+            
+            // Files stats
+            statsHtml += `
+              <div class="border rounded-md p-3">
+                <h3 class="font-medium text-gray-700">Files</h3>
+                <p class="text-2xl font-bold">${data.data.files?.count || 0}</p>
+                <p class="text-xs text-gray-500">Processed: ${data.data.files?.processedCount || 0} | Failed: ${data.data.files?.failedCount || 0}</p>
+              </div>
+            `;
+            
+            // Subscriptions stats
+            statsHtml += `
+              <div class="border rounded-md p-3">
+                <h3 class="font-medium text-gray-700">Subscriptions</h3>
+                <p class="text-2xl font-bold">${data.data.subscriptions?.count || 0}</p>
+                <p class="text-xs text-gray-500">Free: ${data.data.subscriptions?.freeCount || 0} | Pro: ${data.data.subscriptions?.proCount || 0} | Enterprise: ${data.data.subscriptions?.enterpriseCount || 0}</p>
+              </div>
+            `;
+            
+            statsHtml += '</div>';
+            dbStatus.innerHTML = statsHtml;
+          } else {
+            dbStatus.innerHTML = `<p class="text-red-500">Error: ${data.message}</p>`;
+          }
+        } else {
+          dbStatus.innerHTML = '<p class="text-red-500">Failed to fetch database status</p>';
+        }
+      } catch (error) {
+        dbStatus.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+      }
+    }
+    
+    // Handle seeder button clicks
+    seederButtons.forEach(button => {
+      button.addEventListener('click', async () => {
+        const type = button.dataset.type;
+        const options = button.dataset.options ? JSON.parse(button.dataset.options) : {};
+        
+        // Disable all buttons during operation
+        seederButtons.forEach(btn => btn.disabled = true);
+        
+        // Show loading state
+        button.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg> Processing...`;
+        
+        try {
+          // Get token from localStorage if available
+          const token = localStorage.getItem('authToken');
+          const headers = {
+            'Content-Type': 'application/json'
+          };
+          
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          
+          let response;
+          
+          if (type === 'clear') {
+            // Clear database
+            response = await fetch(`${API_BASE}/admin/db/clear`, {
+              method: 'DELETE',
+              headers: headers,
+              body: JSON.stringify({ collection: options.collection || 'all' })
+            });
+          } else {
+            // Run seeder
+            response = await fetch(`${API_BASE}/admin/db/seed`, {
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify({ type, options })
+            });
+          }
+          
+          const data = await response.json();
+          
+          // Show operation result
+          if (data.success) {
+            showOperationSuccess(data.message);
+            operationResults.textContent = JSON.stringify(data.data, null, 2);
+            
+            // Refresh database status
+            fetchDatabaseStatus();
+          } else {
+            showOperationError(data.message);
+            operationResults.textContent = JSON.stringify(data, null, 2);
+          }
+        } catch (error) {
+          showOperationError(`Operation failed: ${error.message}`);
+          operationResults.textContent = error.stack;
+        } finally {
+          // Reset button text
+          button.textContent = button.dataset.type === 'clear' ? 'Clear Database' : 
+                              button.dataset.type === 'all' ? 'Seed All Data' :
+                              button.dataset.type === 'subscription-plans' ? 'Seed Subscription Plans' :
+                              button.dataset.type === 'sample-users' ? 'Seed Sample Users (10)' :
+                              button.dataset.type === 'sample-files' ? 'Seed Sample Files (20)' :
+                              'Seed Usage Data (30 days)';
+          
+          // Re-enable all buttons
+          seederButtons.forEach(btn => btn.disabled = false);
+        }
+      });
+    });
+    
+    // Helper functions
+    function showOperationSuccess(message) {
+      operationStatus.textContent = message;
+      operationStatus.classList.remove('hidden', 'bg-red-100', 'text-red-800');
+      operationStatus.classList.add('bg-green-100', 'text-green-800');
+    }
+    
+    function showOperationError(message) {
+      operationStatus.textContent = message;
+      operationStatus.classList.remove('hidden', 'bg-green-100', 'text-green-800');
+      operationStatus.classList.add('bg-red-100', 'text-red-800');
+    }
+  </script>
+</body>
+</html>
+
