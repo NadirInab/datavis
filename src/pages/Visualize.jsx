@@ -14,6 +14,7 @@ import RadarChartComponent from '../components/charts/RadarChart';
 import BubbleChartComponent from '../components/charts/BubbleChart';
 import { setupTestEnvironment, debugVisualizationData, testExportFunctionality } from '../utils/visualizationTestUtils';
 import { DataPreviewErrorBoundary, TableErrorBoundary } from '../components/ErrorBoundary';
+import DataSummaryCards from '../components/DataSummaryCards';
 
 const Visualize = () => {
   const { fileId } = useParams();
@@ -41,7 +42,7 @@ const Visualize = () => {
   
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('visualize');
+  const [activeTab, setActiveTab] = useState('insights'); // Default to insights tab to showcase the feature
   const [activeVizIndex, setActiveVizIndex] = useState(0);
   const [customViz, setCustomViz] = useState({
     type: 'bar',
@@ -463,9 +464,17 @@ const Visualize = () => {
         <div className="border-b border-gray-200 bg-gradient-to-r from-primary-50 to-secondary-50">
           <ButtonGroup className="w-full">
             <Button
+              onClick={() => setActiveTab('insights')}
+              variant={activeTab === 'insights' ? 'primary' : 'ghost'}
+              className="flex-1 rounded-none border-0"
+            >
+              <Icons.BarChart className="w-4 h-4 mr-2" />
+              Data Insights
+            </Button>
+            <Button
               onClick={() => setActiveTab('visualize')}
               variant={activeTab === 'visualize' ? 'primary' : 'ghost'}
-              className="flex-1 rounded-none border-0"
+              className="flex-1 rounded-none border-0 border-l border-gray-200"
             >
               <Icons.Chart className="w-4 h-4 mr-2" />
               Visualizations
@@ -488,6 +497,28 @@ const Visualize = () => {
             </Button>
           </ButtonGroup>
         </div>
+        
+        {activeTab === 'insights' && (
+          <div className="p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Auto-Generated Data Summary</h2>
+              <p className="text-gray-600">
+                Smart analysis of your data including quality metrics, column insights, suggested visualizations, and anomaly detection.
+              </p>
+            </div>
+            {file.data && file.data.length > 0 ? (
+              <DataSummaryCards data={file.data} />
+            ) : (
+              <div className="text-center py-10">
+                <div className="w-16 h-16 mx-auto bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                  <Icons.BarChart className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Data Available</h3>
+                <p className="text-gray-600">Unable to generate insights without data.</p>
+              </div>
+            )}
+          </div>
+        )}
         
         {activeTab === 'visualize' && (
           <div className="p-6">
@@ -648,8 +679,3 @@ const Visualize = () => {
 };
 
 export default Visualize;
-
-
-
-
-
