@@ -48,43 +48,43 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   
-  // Subscription information
-  subscription: {
-    tier: {
-      type: String,
-      enum: Object.values(SUBSCRIPTION_TIERS),
-      default: SUBSCRIPTION_TIERS.FREE
-    },
-    status: {
-      type: String,
-      enum: Object.values(SUBSCRIPTION_STATUS),
-      default: SUBSCRIPTION_STATUS.ACTIVE
-    },
-    stripeCustomerId: {
-      type: String,
-      default: null
-    },
-    stripeSubscriptionId: {
-      type: String,
-      default: null
-    },
-    currentPeriodStart: {
-      type: Date,
-      default: Date.now
-    },
-    currentPeriodEnd: {
-      type: Date,
-      default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-    },
-    cancelAtPeriodEnd: {
-      type: Boolean,
-      default: false
-    },
-    trialEnd: {
-      type: Date,
-      default: null
-    }
-  },
+  // Subscription information (commented out for now)
+  // subscription: {
+  //   tier: {
+  //     type: String,
+  //     enum: Object.values(SUBSCRIPTION_TIERS),
+  //     default: SUBSCRIPTION_TIERS.FREE
+  //   },
+  //   status: {
+  //     type: String,
+  //     enum: Object.values(SUBSCRIPTION_STATUS),
+  //     default: SUBSCRIPTION_STATUS.ACTIVE
+  //   },
+  //   stripeCustomerId: {
+  //     type: String,
+  //     default: null
+  //   },
+  //   stripeSubscriptionId: {
+  //     type: String,
+  //     default: null
+  //   },
+  //   currentPeriodStart: {
+  //     type: Date,
+  //     default: Date.now
+  //   },
+  //   currentPeriodEnd: {
+  //     type: Date,
+  //     default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+  //   },
+  //   cancelAtPeriodEnd: {
+  //     type: Boolean,
+  //     default: false
+  //   },
+  //   trialEnd: {
+  //     type: Date,
+  //     default: null
+  //   }
+  // },
   
   // File upload tracking
   fileUsage: {
@@ -220,105 +220,99 @@ const userSchema = new mongoose.Schema({
 
 // Compound indexes for performance (only non-duplicate ones)
 userSchema.index({ role: 1, isActive: 1 });
-userSchema.index({ 'subscription.stripeCustomerId': 1 });
+// userSchema.index({ 'subscription.stripeCustomerId': 1 }); // commented out
 userSchema.index({ createdAt: -1 });
 userSchema.index({ lastActivityAt: -1 });
 
-// Virtual for subscription limits
-userSchema.virtual('subscriptionLimits').get(function() {
-  const limits = {
-    [SUBSCRIPTION_TIERS.FREE]: {
-      files: 5, // 2 visitor + 3 authenticated
-      storage: 10 * 1024 * 1024, // 10MB
-      exports: 10,
-      visualizations: ['bar', 'line', 'pie']
-    },
-    [SUBSCRIPTION_TIERS.PRO]: {
-      files: -1, // unlimited
-      storage: 100 * 1024 * 1024, // 100MB
-      exports: 100,
-      visualizations: ['bar', 'line', 'pie', 'area', 'radar', 'scatter']
-    },
-    [SUBSCRIPTION_TIERS.ENTERPRISE]: {
-      files: -1, // unlimited
-      storage: 1024 * 1024 * 1024, // 1GB
-      exports: -1, // unlimited
-      visualizations: 'all'
-    }
-  };
-  
-  return limits[this.subscription.tier] || limits[SUBSCRIPTION_TIERS.FREE];
-});
+// Virtuals and methods related to subscription plans are commented out for now
+// userSchema.virtual('subscriptionLimits').get(function() {
+//   const limits = {
+//     [SUBSCRIPTION_TIERS.FREE]: {
+//       files: 5, // 2 visitor + 3 authenticated
+//       storage: 10 * 1024 * 1024, // 10MB
+//       exports: 10,
+//       visualizations: ['bar', 'line', 'pie']
+//     },
+//     [SUBSCRIPTION_TIERS.PRO]: {
+//       files: -1, // unlimited
+//       storage: 100 * 1024 * 1024, // 100MB
+//       exports: 100,
+//       visualizations: ['bar', 'line', 'pie', 'area', 'radar', 'scatter']
+//     },
+//     [SUBSCRIPTION_TIERS.ENTERPRISE]: {
+//       files: -1, // unlimited
+//       storage: 1024 * 1024 * 1024, // 1GB
+//       exports: -1, // unlimited
+//       visualizations: 'all'
+//     }
+//   };
+//   
+//   return limits[this.subscription.tier] || limits[SUBSCRIPTION_TIERS.FREE];
+// });
 
-// Virtual for visitor file limit
-userSchema.virtual('visitorFileLimit').get(function() {
-  return 2; // Visitors can upload up to 2 files
-});
+// userSchema.virtual('visitorFileLimit').get(function() {
+//   return 2; // Visitors can upload up to 2 files
+// });
 
-// Virtual for authenticated user additional files
-userSchema.virtual('authenticatedUserBonus').get(function() {
-  return 3; // Authenticated users get 3 additional files
-});
+// userSchema.virtual('authenticatedUserBonus').get(function() {
+//   return 3; // Authenticated users get 3 additional files
+// });
 
-// Method to check if user can upload files
-userSchema.methods.canUploadFile = function() {
-  const limits = this.subscriptionLimits;
-  
-  // Unlimited files for paid tiers
-  if (limits.files === -1) {
-    return { canUpload: true, reason: 'unlimited' };
-  }
-  
-  // Check file limit
-  if (this.fileUsage.totalFiles >= limits.files) {
-    return { 
-      canUpload: false, 
-      reason: 'file_limit_exceeded',
-      current: this.fileUsage.totalFiles,
-      limit: limits.files
-    };
-  }
-  
-  return { canUpload: true, reason: 'within_limits' };
-};
+// userSchema.methods.canUploadFile = function() {
+//   const limits = this.subscriptionLimits;
+//   
+//   // Unlimited files for paid tiers
+//   if (limits.files === -1) {
+//     return { canUpload: true, reason: 'unlimited' };
+//   }
+//   
+//   // Check file limit
+//   if (this.fileUsage.totalFiles >= limits.files) {
+//     return { 
+//       canUpload: false, 
+//       reason: 'file_limit_exceeded',
+//       current: this.fileUsage.totalFiles,
+//       limit: limits.files
+//     };
+//   }
+//   
+//   return { canUpload: true, reason: 'within_limits' };
+// };
 
-// Method to check storage limit
-userSchema.methods.canUploadFileSize = function(fileSize) {
-  const limits = this.subscriptionLimits;
-  
-  if (this.fileUsage.storageUsed + fileSize > limits.storage) {
-    return {
-      canUpload: false,
-      reason: 'storage_limit_exceeded',
-      current: this.fileUsage.storageUsed,
-      limit: limits.storage,
-      required: fileSize
-    };
-  }
-  
-  return { canUpload: true, reason: 'within_limits' };
-};
+// userSchema.methods.canUploadFileSize = function(fileSize) {
+//   const limits = this.subscriptionLimits;
+//   
+//   if (this.fileUsage.storageUsed + fileSize > limits.storage) {
+//     return {
+//       canUpload: false,
+//       reason: 'storage_limit_exceeded',
+//       current: this.fileUsage.storageUsed,
+//       limit: limits.storage,
+//       required: fileSize
+//     };
+//   }
+//   
+//   return { canUpload: true, reason: 'within_limits' };
+// };
 
-// Method to reset monthly counters
-userSchema.methods.resetMonthlyUsage = function() {
-  const now = new Date();
-  const lastReset = this.fileUsage.lastResetDate;
-  
-  // Reset if it's a new month
-  if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
-    this.fileUsage.filesThisMonth = 0;
-    this.fileUsage.lastResetDate = now;
-    this.exportUsage.exportsThisMonth = 0;
-    this.exportUsage.lastResetDate = now;
-  }
-};
+// userSchema.methods.resetMonthlyUsage = function() {
+//   const now = new Date();
+//   const lastReset = this.fileUsage.lastResetDate;
+//   
+//   // Reset if it's a new month
+//   if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+//     this.fileUsage.filesThisMonth = 0;
+//     this.fileUsage.lastResetDate = now;
+//     this.exportUsage.exportsThisMonth = 0;
+//     this.exportUsage.lastResetDate = now;
+//   }
+// };
 
-// Pre-save middleware
-userSchema.pre('save', function(next) {
-  this.lastActivityAt = new Date();
-  this.resetMonthlyUsage();
-  next();
-});
+// userSchema.pre('save', function(next) {
+//   this.lastActivityAt = new Date();
+//   this.resetMonthlyUsage();
+//   next();
+// });
 
 module.exports = mongoose.model('User', userSchema);
 
