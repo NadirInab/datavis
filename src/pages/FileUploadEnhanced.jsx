@@ -20,8 +20,19 @@ import {
 import SignupPrompt from '../components/guest/SignupPrompt';
 import GuestMetrics from '../components/guest/GuestMetrics';
 
-const FileUpload = () => {
-  const { currentUser, hasReachedFileLimit, incrementFileCount, isVisitor } = useAuth();
+const FileUploadEnhanced = () => {
+  const { 
+    currentUser, 
+    hasReachedFileLimit, 
+    incrementFileCount, 
+    recordVisitorUpload,
+    canUpload,
+    isVisitor,
+    visitorStats,
+    fingerprintReady,
+    getVisitorId
+  } = useAuth();
+  
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,15 +45,44 @@ const FileUpload = () => {
   const [showGoogleSheets, setShowGoogleSheets] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [metrics, setMetrics] = useState(null);
+  const [visitorId, setVisitorId] = useState(null);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const { showUpgradePrompt, UpgradePromptComponent } = useUpgradePrompt();
+
+  // Get visitor ID on component mount
+  useEffect(() => {
+    const initializeVisitorId = async () => {
+      if (isVisitor() && fingerprintReady) {
+        try {
+          const id = await getVisitorId();
+          setVisitorId(id);
+          console.log('Visitor ID initialized:', id);
+        } catch (error) {
+          console.error('Failed to get visitor ID:', error);
+        }
+      }
+    };
+
+    initializeVisitorId();
+  }, [isVisitor, fingerprintReady, getVisitorId]);
 
   // Load metrics on component mount and when user changes
   useEffect(() => {
     const loadMetrics = () => {
       if (isVisitor() || !currentUser) {
-        setMetrics(getGuestMetrics());
+        if (visitorStats) {
+          setMetrics({
+            filesUploaded: visitorStats.totalUploads,
+            maxFiles: visitorStats.maxUploads,
+            remainingFiles: visitorStats.remainingUploads,
+            canUpload: visitorStats.canUpload,
+            visitorId: visitorStats.visitorId,
+            fingerprintReady
+          });
+        } else {
+          setMetrics(getGuestMetrics());
+        }
       } else {
         setMetrics(getUserMetrics(currentUser));
       }
@@ -54,7 +94,7 @@ const FileUpload = () => {
     const interval = setInterval(loadMetrics, 30000);
     
     return () => clearInterval(interval);
-  }, [currentUser, isVisitor]);
+  }, [currentUser, isVisitor, visitorStats, fingerprintReady]);
 
   const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
@@ -70,20 +110,33 @@ const FileUpload = () => {
     setUploadStatus('idle');
 
     try {
-      // Comprehensive file validation
-      const validation = validateFileUpload(selectedFile, currentUser);
+      // Enhanced file validation with fingerprint-based tracking
+      let validation;
       
-      if (!validation.valid) {
-        setError(validation.error);
-        
-        // Show appropriate upgrade prompt
-        if (validation.upgrade === 'signup') {
-          const guestMetrics = getGuestMetrics();
-          setShowSignupPrompt(true);
-        } else if (validation.upgrade) {
-          showUpgradePrompt(validation.upgrade);
+      if (isVisitor() || !currentUser) {
+        // For visitors, use fingerprint-based validation
+        validation = await canUpload(selectedFile.size);
+        if (!validation.allowed) {
+          setError(validation.reason);
+          
+          if (validation.upgradeRequired === 'signup') {
+            setShowSignupPrompt(true);
+          }
+          return;
         }
-        return;
+      } else {
+        // For authenticated users, use existing validation
+        validation = validateFileUpload(selectedFile, currentUser);
+        if (!validation.valid) {
+          setError(validation.error);
+          
+          if (validation.upgrade === 'signup') {
+            setShowSignupPrompt(true);
+          } else if (validation.upgrade) {
+            showUpgradePrompt(validation.upgrade);
+          }
+          return;
+        }
       }
 
       // Security validation
@@ -338,13 +391,25 @@ const FileUpload = () => {
     }
 
     // Final validation before upload
-    const validation = validateFileUpload(file, currentUser);
-    if (!validation.valid) {
-      setError(validation.error);
-      if (validation.upgrade === 'signup') {
-        setShowSignupPrompt(true);
+    let validation;
+    if (isVisitor() || !currentUser) {
+      validation = await canUpload(file.size);
+      if (!validation.allowed) {
+        setError(validation.reason);
+        if (validation.upgradeRequired === 'signup') {
+          setShowSignupPrompt(true);
+        }
+        return;
       }
-      return;
+    } else {
+      validation = validateFileUpload(file, currentUser);
+      if (!validation.valid) {
+        setError(validation.error);
+        if (validation.upgrade === 'signup') {
+          setShowSignupPrompt(true);
+        }
+        return;
+      }
     }
 
     setLoading(true);
@@ -402,7 +467,7 @@ const FileUpload = () => {
     }
   };
 
-  const handleConfirmUpload = () => {
+  const handleConfirmUpload = async () => {
     if (!parsedData) return;
 
     try {
@@ -423,23 +488,39 @@ const FileUpload = () => {
         columns: parsedData.headers.length,
         columnTypes: parsedData.columnAnalysis,
         visualizations: recommendedVisualizations,
-        data: parsedData.data.slice(0, 1000)
+        data: parsedData.data.slice(0, 1000),
+        visitorId: visitorId // Include visitor ID for tracking
       };
 
-      const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
+      const userId = currentUser?.id || (isVisitor() ? visitorId || 'visitor-session' : 'anonymous');
       const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
       localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
 
       // Record upload for metrics
       if (isVisitor() || !currentUser) {
-        recordGuestUpload(file);
+        try {
+          await recordVisitorUpload(file);
+          console.log('Visitor upload recorded successfully');
+        } catch (error) {
+          console.error('Failed to record visitor upload:', error);
+          // Continue anyway, don't block the upload
+        }
+      } else {
+        incrementFileCount();
       }
-
-      incrementFileCount();
 
       // Update metrics
       if (isVisitor() || !currentUser) {
-        setMetrics(getGuestMetrics());
+        if (visitorStats) {
+          setMetrics({
+            filesUploaded: visitorStats.totalUploads + 1,
+            maxFiles: visitorStats.maxUploads,
+            remainingFiles: Math.max(0, visitorStats.remainingUploads - 1),
+            canUpload: visitorStats.remainingUploads > 1,
+            visitorId: visitorStats.visitorId,
+            fingerprintReady
+          });
+        }
       } else {
         setMetrics(getUserMetrics(currentUser));
       }
@@ -536,19 +617,27 @@ const FileUpload = () => {
       <SignupPrompt
         isOpen={showSignupPrompt}
         onClose={() => setShowSignupPrompt(false)}
-        reason="You've reached the guest upload limit of 2 files"
+        reason="You've reached the guest upload limit"
         filesUploaded={metrics?.filesUploaded || 0}
         maxFiles={metrics?.maxFiles || 2}
+        visitorId={visitorId}
+        fingerprintReady={fingerprintReady}
       />
 
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Upload Data File</h1>
           <p className="mt-2 text-gray-600">Transform your data into beautiful visualizations</p>
+          {visitorId && fingerprintReady && (
+            <p className="mt-1 text-xs text-gray-500">
+              Visitor ID: {visitorId.substring(0, 8)}... (Persistent across sessions)
+            </p>
+          )}
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-500">
           <Icons.Upload className="w-4 h-4" />
           <span>Secure upload • Multiple formats supported</span>
+          {fingerprintReady && <Icons.Shield className="w-4 h-4 text-green-500" />}
         </div>
       </div>
 
@@ -710,6 +799,12 @@ const FileUpload = () => {
                           <Icons.Check className="w-3 h-3 text-green-500" />
                           <span>Smart analysis</span>
                         </div>
+                        {fingerprintReady && (
+                          <div className="flex items-center space-x-1">
+                            <Icons.Shield className="w-3 h-3 text-blue-500" />
+                            <span>Persistent tracking</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -844,7 +939,7 @@ const FileUpload = () => {
                   <div className="mt-6">
                     <UploadProgress
                       progress={progress}
-                      fileName={file?.name}
+                      fileName={file?.name || 'Unknown file'}
                       status={uploadStatus}
                     />
                   </div>
@@ -882,7 +977,11 @@ const FileUpload = () => {
 
         {/* Metrics Sidebar */}
         <div className="lg:col-span-1">
-          <GuestMetrics />
+          <GuestMetrics 
+            visitorId={visitorId}
+            fingerprintReady={fingerprintReady}
+            customMetrics={metrics}
+          />
         </div>
       </div>
 
@@ -910,8 +1009,14 @@ const FileUpload = () => {
               </div>
               <div className="flex items-center">
                 <Icons.Check className="w-4 h-4 text-green-500 mr-2" />
-                <span>Rate limiting protection</span>
+                <span>Persistent visitor tracking</span>
               </div>
+              {fingerprintReady && (
+                <div className="flex items-center">
+                  <Icons.Shield className="w-4 h-4 text-blue-500 mr-2" />
+                  <span>FingerprintJS protection</span>
+                </div>
+              )}
             </div>
           </div>
         </Card>
@@ -926,11 +1031,17 @@ const FileUpload = () => {
                    currentUser?.subscription?.charAt(0).toUpperCase() + currentUser?.subscription?.slice(1)} Plan
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  {isVisitor() || !currentUser ? 'Upload up to 2 files • 2MB per file • CSV only' :
+                  {isVisitor() || !currentUser ? 
+                    `Upload up to ${metrics?.maxFiles || 2} files • 2MB per file • CSV only` :
                    currentUser?.subscription === 'free' ? 'Upload up to 5 files • 5MB per file • Multiple formats' :
                    currentUser?.subscription === 'pro' ? 'Upload up to 50 files • 25MB per file • All features' :
                    'Upload up to 1000 files • 100MB per file • All features'}
                 </p>
+                {visitorId && fingerprintReady && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tracked across sessions with ID: {visitorId.substring(0, 12)}...
+                  </p>
+                )}
               </div>
               {(isVisitor() || !currentUser || currentUser?.subscription === 'free') && (
                 <Button
@@ -951,4 +1062,4 @@ const FileUpload = () => {
   );
 };
 
-export default FileUpload;
+export default FileUploadEnhanced;

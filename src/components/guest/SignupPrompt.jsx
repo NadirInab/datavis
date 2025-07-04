@@ -8,7 +8,9 @@ const SignupPrompt = ({
   onClose, 
   reason = "You've reached the guest upload limit",
   filesUploaded = 0,
-  maxFiles = 2 
+  maxFiles = 2,
+  visitorId = null,
+  fingerprintReady = false
 }) => {
   const navigate = useNavigate();
   const { signInWithGoogle } = useAuth();
@@ -36,6 +38,11 @@ const SignupPrompt = ({
   const handleSignin = () => {
     onClose();
     navigate('/signin');
+  };
+
+  const formatVisitorId = (id) => {
+    if (!id) return 'Unknown';
+    return id.length > 12 ? `${id.substring(0, 8)}...${id.substring(id.length - 4)}` : id;
   };
 
   if (!isOpen) return null;
@@ -79,6 +86,31 @@ const SignupPrompt = ({
               ></div>
             </div>
             <p className="text-xs text-gray-500 mt-2">{reason}</p>
+            
+            {/* Visitor ID Info */}
+            {visitorId && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-600">
+                    {fingerprintReady ? 'Visitor ID' : 'Session ID'}
+                  </span>
+                  {fingerprintReady && (
+                    <div className="flex items-center">
+                      <Icons.Shield className="w-3 h-3 text-blue-500 mr-1" />
+                      <span className="text-xs text-blue-600">Persistent</span>
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs font-mono text-gray-500 mt-1">
+                  {formatVisitorId(visitorId)}
+                </div>
+                {fingerprintReady && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Your upload limit is tracked across browser sessions
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Benefits */}
@@ -104,6 +136,10 @@ const SignupPrompt = ({
               <div className="flex items-center text-sm text-gray-600">
                 <Icons.Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
                 <span>Export in multiple formats</span>
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <Icons.Check className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
+                <span>No more upload limits</span>
               </div>
             </div>
           </div>
@@ -146,15 +182,29 @@ const SignupPrompt = ({
             </div>
           </div>
 
-          {/* Privacy Note */}
-          <div className="mt-6 p-3 bg-blue-50 rounded-lg">
-            <div className="flex items-start">
-              <Icons.Shield className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-blue-700">
-                <p className="font-medium mb-1">Your data is secure</p>
-                <p>We use industry-standard encryption and never share your data with third parties.</p>
+          {/* Privacy & Security Note */}
+          <div className="mt-6 space-y-3">
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-start">
+                <Icons.Shield className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <div className="text-xs text-blue-700">
+                  <p className="font-medium mb-1">Your data is secure</p>
+                  <p>We use industry-standard encryption and never share your data with third parties.</p>
+                </div>
               </div>
             </div>
+            
+            {fingerprintReady && (
+              <div className="p-3 bg-green-50 rounded-lg">
+                <div className="flex items-start">
+                  <Icons.Check className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-green-700">
+                    <p className="font-medium mb-1">Persistent tracking active</p>
+                    <p>Your upload limits are securely tracked across browser sessions using FingerprintJS.</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

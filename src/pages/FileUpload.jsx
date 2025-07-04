@@ -15,7 +15,175 @@ import {
   checkGuestUploadLimit,
   checkUserUploadLimit,
   getGuestMetrics,
-  getUserMetrics
+  getUserMetricsimport React, { useEffect, useState } from 'react';
+import Card from '../ui/Card';
+import Button, { Icons } from '../ui/Button';
+import { getUserMetrics } from '../../utils/rateLimiting';
+import { trackFeatureUsage } from '../../utils/featureGating';
+
+/**
+ * UserDetails
+ * Displays all available details about a user, including profile info, usage metrics, and feature usage.
+ * Props:
+ *   - user: user object (required)
+ *   - onEdit: function to trigger edit (optional)
+ *   - onUpgrade: function to trigger upgrade (optional)
+ */
+const UserDetails = ({ user, onEdit, onUpgrade }) => {
+  const [metrics, setMetrics] = useState(null);
+  const [featureUsage, setFeatureUsage] = useState(null);
+
+  useEffect(() => {
+    if (user) {
+      setMetrics(getUserMetrics(user));
+      // Feature usage is stored in localStorage for demo; in real app, fetch from backend
+      const usage = JSON.parse(localStorage.getItem('featureUsage') || '{}');
+      const userUsage = Object.entries(usage)
+        .filter(([key]) => key.startsWith(user.id || user.uid))
+        .map(([key, count]) => ({
+          feature: key.split('_').slice(1).join('_'),
+          count
+        }));
+      setFeatureUsage(userUsage);
+    }
+  }, [user]);
+
+  if (!user) return <div>No user selected.</div>;
+
+  // Helper to display key-value pairs
+  const renderDetails = (obj) =>
+    Object.entries(obj).map(([key, value]) => (
+      <div key={key} className="flex justify-between py-1 border-b border-gray-50">
+        <span className="text-xs text-gray-500">{key}</span>
+        <span className="text-xs text-gray-900 font-mono break-all">
+          {typeof value === 'object' && value !== null
+            ? JSON.stringify(value)
+            : String(value)}
+        </span>
+      </div>
+    ));
+
+  return (
+    <Card className="p-6 max-w-2xl mx-auto">
+      <div className="flex items-center mb-6">
+        {user.photoURL && (
+          <img
+            src={user.photoURL}
+            alt="User avatar"
+            className="w-16 h-16 rounded-full mr-4 border"
+          />
+        )}
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">{user.displayName || user.email || user.id}</h2>
+          <div className="text-xs text-gray-500">{user.email}</div>
+          <div className="text-xs text-gray-500">
+            User ID: <span className="font-mono">{user.id || user.uid}</span>
+          </div>
+          {user.subscription && (
+            <div className="mt-1 text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded inline-block">
+              {user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1)} Plan
+            </div>
+          )}
+        </div>
+        <div className="ml-auto flex space-x-2">
+          {onEdit && (
+            <Button size="sm" variant="outline" icon={Icons.Edit} onClick={() => onEdit(user)}>
+              Edit
+            </Button>
+          )}
+          {onUpgrade && (
+            <Button size="sm" variant="primary" icon={Icons.Star} onClick={() => onUpgrade(user)}>
+              Upgrade
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Profile Details */}
+        <div>
+          <h3 className="text-sm font-semibold text-[#5A827E] mb-2">Profile Details</h3>
+          <div className="bg-gray-50 rounded-lg p-3 text-xs">
+            {renderDetails({
+              'Email': user.email,
+              'Display Name': user.displayName,
+              'User ID': user.id || user.uid,
+              'Provider': user.providerId || user.provider || 'N/A',
+              'Created At': user.metadata?.creationTime || user.createdAt || 'N/A',
+              'Last Login': user.metadata?.lastSignInTime || user.lastLogin || 'N/A',
+              'Phone': user.phoneNumber || 'N/A',
+              'Photo URL': user.photoURL || 'N/A',
+              'Subscription': user.subscription || 'N/A',
+              'Custom Claims': user.customClaims || 'N/A',
+              'Disabled': user.disabled ? 'Yes' : 'No'
+            })}
+          </div>
+        </div>
+
+        {/* Usage Metrics */}
+        <div>
+          <h3 className="text-sm font-semibold text-[#5A827E] mb-2">Usage Metrics</h3>
+          {metrics ? (
+            <div className="bg-gray-50 rounded-lg p-3 text-xs">
+              {renderDetails({
+                'Files Uploaded': metrics.filesUploaded,
+                'Max Files': metrics.maxFiles,
+                'Remaining Files': metrics.remainingFiles,
+                'Total Storage': metrics.totalStorage + ' bytes',
+                'Max Storage': metrics.maxStorage + ' bytes',
+                'Remaining Storage': metrics.remainingStorage + ' bytes',
+                'First Upload': metrics.firstUpload ? new Date(metrics.firstUpload).toLocaleString() : 'N/A',
+                'Last Upload': metrics.lastUpload ? new Date(metrics.lastUpload).toLocaleString() : 'N/A'
+              })}
+            </div>
+          ) : (
+            <div className="text-xs text-gray-400">Loading metrics...</div>
+          )}
+        </div>
+      </div>
+
+      {/* Feature Usage */}
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-[#5A827E] mb-2">Feature Usage</h3>
+        {featureUsage && featureUsage.length > 0 ? (
+          <div className="bg-gray-50 rounded-lg p-3 text-xs">
+            {featureUsage.map((f, idx) => (
+              <div key={idx} className="flex justify-between py-1 border-b border-gray-50">
+                <span>{f.feature}</span>
+                <span className="font-mono">{f.count}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs text-gray-400">No feature usage recorded.</div>
+        )}
+      </div>
+
+      {/* Recent Activity */}
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-[#5A827E] mb-2">Recent Uploads</h3>
+        {metrics && metrics.uploadHistory && metrics.uploadHistory.length > 0 ? (
+          <div className="bg-gray-50 rounded-lg p-3 text-xs max-h-40 overflow-y-auto">
+            {metrics.uploadHistory.slice(-5).reverse().map((upload, idx) => (
+              <div key={idx} className="flex justify-between py-1 border-b border-gray-50">
+                <span>
+                  {upload.fileName} <span className="text-gray-400">({upload.fileType})</span>
+                </span>
+                <span>
+                  {new Date(upload.timestamp).toLocaleString()} • {(upload.fileSize / 1024).toFixed(1)} KB
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs text-gray-400">No uploads yet.</div>
+        )}
+      </div>
+    </Card>
+  );
+};
+
+export default UserDetails;
 } from '../utils/rateLimiting';
 import SignupPrompt from '../components/guest/SignupPrompt';
 import GuestMetrics from '../components/guest/GuestMetrics';

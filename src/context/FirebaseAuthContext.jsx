@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, onAuthStateChanged, authHelpers, getFirebaseErrorMessage } from '../config/firebase';
 import { authAPI, apiUtils } from '../services/api';
 import { hasFeatureAccess, getUserLimits, trackFeatureUsage } from '../utils/featureGating';
+import visitorTrackingService from '../services/visitorTrackingService';
+import fingerprintService from '../services/fingerprintService';
 
 const AuthContext = createContext(null);
 
@@ -19,6 +21,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [visitorSession, setVisitorSession] = useState(null);
+  const [visitorStats, setVisitorStats] = useState(null);
+  const [fingerprintReady, setFingerprintReady] = useState(false);
 
   // Subscription plan limits (preserved from original)
   const subscriptionLimits = {
@@ -39,33 +43,102 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Initialize fingerprint and visitor tracking
+  const initializeFingerprintTracking = async () => {
+    try {
+      console.log('Initializing fingerprint tracking...');
+      
+      // Initialize fingerprint service
+      await fingerprintService.initialize();
+      setFingerprintReady(true);
+      
+      // Initialize visitor tracking
+      await visitorTrackingService.initialize();
+      
+      // Get visitor stats
+      const stats = await visitorTrackingService.getVisitorStats();
+      setVisitorStats(stats);
+      
+      console.log('Fingerprint tracking initialized:', stats);
+      
+      return stats;
+    } catch (error) {
+      console.error('Failed to initialize fingerprint tracking:', error);
+      setFingerprintReady(false);
+      
+      // Fallback visitor stats
+      const fallbackStats = {
+        visitorId: 'fallback_' + Date.now(),
+        totalUploads: 0,
+        maxUploads: 2,
+        remainingUploads: 2,
+        uploads: [],
+        firstVisit: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
+        canUpload: true,
+        error: error.message
+      };
+      
+      setVisitorStats(fallbackStats);
+      return fallbackStats;
+    }
+  };
+
   // Initialize optimized visitor session for unauthenticated users
   const initializeVisitorSession = async () => {
     try {
+      // Initialize fingerprint tracking first
+      const stats = await initializeFingerprintTracking();
+      
       let sessionId = apiUtils.getSessionId();
       if (!sessionId) {
         sessionId = apiUtils.generateSessionId();
       }
 
-      // Get visitor info from optimized backend service
-      const response = await authAPI.getVisitorInfo();
-      setVisitorSession({
-        ...response.data,
-        features: response.data.features || ['csv_upload', 'google_sheets_import', 'basic_charts', 'chart_export_png']
-      });
+      // Try to get visitor info from backend
+      try {
+        const response = await authAPI.getVisitorInfo();
+        setVisitorSession({
+          ...response.data,
+          visitorId: stats.visitorId,
+          fingerprintReady,
+          features: response.data.features || ['csv_upload', 'google_sheets_import', 'basic_charts', 'chart_export_png']
+        });
+      } catch (error) {
+        console.warn('Could not get visitor info from backend, using local tracking:', error);
+        
+        // Create enhanced local visitor session as fallback
+        setVisitorSession({
+          sessionId,
+          visitorId: stats.visitorId,
+          filesUploaded: stats.totalUploads,
+          fileLimit: stats.maxUploads,
+          remainingFiles: stats.remainingUploads,
+          isLimitReached: !stats.canUpload,
+          canUpload: stats.canUpload,
+          lastActivity: stats.lastActivity,
+          fingerprintReady,
+          features: ['csv_upload', 'google_sheets_import', 'basic_charts', 'chart_export_png'],
+          upgradeMessage: stats.canUpload ? null : 'Upload limit reached. Sign up for more uploads!'
+        });
+      }
     } catch (error) {
-      console.warn('Could not initialize visitor session:', error);
-      // Create enhanced local visitor session as fallback
+      console.error('Failed to initialize visitor session:', error);
+      
+      // Ultimate fallback
       setVisitorSession({
-        sessionId: apiUtils.getSessionId(),
+        sessionId: apiUtils.getSessionId() || 'fallback_session',
+        visitorId: 'fallback_visitor',
         filesUploaded: 0,
-        fileLimit: 3, // Updated visitor limit
-        remainingFiles: 3,
+        fileLimit: 2,
+        remainingFiles: 2,
         isLimitReached: false,
         canUpload: true,
         lastActivity: new Date().toISOString(),
-        features: ['csv_upload', 'google_sheets_import', 'basic_charts', 'chart_export_png'],
-        upgradeMessage: null
+        fingerprintReady: false,
+        features: ['csv_upload'],
+        upgradeMessage: null,
+        error: error.message
       });
     }
   };
@@ -82,8 +155,16 @@ export const AuthProvider = ({ children }) => {
       // Store token for API requests
       apiUtils.setAuthToken(idToken);
 
+      // Get visitor ID for backend sync
+      let visitorId = null;
+      try {
+        visitorId = await fingerprintService.getVisitorId();
+      } catch (error) {
+        console.warn('Could not get visitor ID for user sync:', error);
+      }
+
       // Verify token with backend and get/create user
-      const response = await authAPI.verifyToken(idToken);
+      const response = await authAPI.verifyToken(idToken, { visitorId });
       
       if (response.success) {
         const userData = response.data.user;
@@ -104,7 +185,8 @@ export const AuthProvider = ({ children }) => {
           photoURL: userData.photoURL,
           isEmailVerified: userData.isEmailVerified,
           subscriptionLimits: userData.subscriptionLimits,
-          preferences: userData.preferences
+          preferences: userData.preferences,
+          visitorId // Include visitor ID for tracking
         };
 
         setCurrentUser(transformedUser);
@@ -112,6 +194,7 @@ export const AuthProvider = ({ children }) => {
         
         // Clear visitor session since user is now authenticated
         setVisitorSession(null);
+        setVisitorStats(null);
         apiUtils.setSessionId(null);
         
         return transformedUser;
@@ -270,17 +353,76 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Increment file count when user uploads a file
-  const incrementFileCount = () => {
-    if (!currentUser) return;
-    
-    const updatedUser = {
-      ...currentUser,
-      filesCount: (currentUser.filesCount || 0) + 1,
-      lastUpdated: new Date().toISOString()
-    };
-    
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setCurrentUser(updatedUser);
+  const incrementFileCount = async () => {
+    if (currentUser) {
+      // For authenticated users
+      const updatedUser = {
+        ...currentUser,
+        filesCount: (currentUser.filesCount || 0) + 1,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+    } else {
+      // For visitors, update visitor stats
+      try {
+        const stats = await visitorTrackingService.getVisitorStats();
+        setVisitorStats(stats);
+        
+        // Update visitor session
+        if (visitorSession) {
+          setVisitorSession({
+            ...visitorSession,
+            filesUploaded: stats.totalUploads,
+            remainingFiles: stats.remainingUploads,
+            isLimitReached: !stats.canUpload,
+            canUpload: stats.canUpload,
+            lastActivity: stats.lastActivity
+          });
+        }
+      } catch (error) {
+        console.error('Failed to update visitor stats:', error);
+      }
+    }
+  };
+
+  // Record file upload for visitors
+  const recordVisitorUpload = async (fileInfo) => {
+    try {
+      if (!currentUser) {
+        const result = await visitorTrackingService.recordUpload(fileInfo);
+        if (result.success) {
+          await incrementFileCount();
+          return result;
+        }
+        throw new Error(result.error || 'Failed to record upload');
+      }
+      return { success: true, message: 'User upload, no visitor tracking needed' };
+    } catch (error) {
+      console.error('Failed to record visitor upload:', error);
+      throw error;
+    }
+  };
+
+  // Check if user/visitor can upload
+  const canUpload = async (fileSize = 0) => {
+    if (currentUser) {
+      // For authenticated users, use existing logic
+      if (currentUser.filesLimit === -1) return { allowed: true };
+      
+      const remaining = currentUser.filesLimit - (currentUser.filesCount || 0);
+      return {
+        allowed: remaining > 0,
+        reason: remaining <= 0 ? 'File limit reached for your subscription' : null,
+        currentUploads: currentUser.filesCount || 0,
+        maxUploads: currentUser.filesLimit,
+        remainingUploads: remaining
+      };
+    } else {
+      // For visitors, use fingerprint-based tracking
+      return await visitorTrackingService.canUpload(fileSize);
+    }
   };
 
   // Check if user has reached their file limit
@@ -289,6 +431,9 @@ export const AuthProvider = ({ children }) => {
       // For visitors, check visitor session
       if (visitorSession) {
         return visitorSession.filesUploaded >= visitorSession.fileLimit;
+      }
+      if (visitorStats) {
+        return !visitorStats.canUpload;
       }
       return true;
     }
@@ -329,11 +474,23 @@ export const AuthProvider = ({ children }) => {
   // Get remaining file uploads
   const getRemainingFiles = () => {
     if (!currentUser) {
-      return visitorSession ? visitorSession.remainingFiles : 2;
+      if (visitorSession) return visitorSession.remainingFiles;
+      if (visitorStats) return visitorStats.remainingUploads;
+      return 2;
     }
     
     if (currentUser.filesLimit === -1) return 'unlimited';
     return Math.max(0, currentUser.filesLimit - (currentUser.filesCount || 0));
+  };
+
+  // Get visitor ID
+  const getVisitorId = async () => {
+    try {
+      return await fingerprintService.getVisitorId();
+    } catch (error) {
+      console.error('Failed to get visitor ID:', error);
+      return null;
+    }
   };
 
   // Firebase auth state listener
@@ -361,6 +518,13 @@ export const AuthProvider = ({ children }) => {
     });
 
     return unsubscribe;
+  }, []);
+
+  // Initialize visitor tracking on mount
+  useEffect(() => {
+    if (!currentUser && !firebaseUser) {
+      initializeVisitorSession();
+    }
   }, []);
 
   // Check for existing user on mount (fallback)
@@ -393,6 +557,8 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     firebaseUser,
     visitorSession,
+    visitorStats,
+    fingerprintReady,
     loading,
     authError,
     login,
@@ -402,6 +568,8 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     updateSubscription,
     incrementFileCount,
+    recordVisitorUpload,
+    canUpload,
     hasReachedFileLimit,
     getSubscriptionFeatures,
     isAdmin,
@@ -409,6 +577,7 @@ export const AuthProvider = ({ children }) => {
     isVisitor,
     getUserType,
     getRemainingFiles,
+    getVisitorId,
     subscriptionLimits,
     setAuthError,
     // Feature access methods
@@ -423,5 +592,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-
-

@@ -10,13 +10,14 @@ import Dashboard from '../pages/Dashboard';
 import SignIn from '../pages/SignIn';
 import SignUp from '../pages/SignUp';
 import Visualize from '../pages/Visualize';
-import FileUpload from '../pages/FileUpload';
+import FileUploadEnhanced from '../pages/FileUploadEnhanced';
 import Files from '../pages/Files';
 import Profile from '../pages/Profile';
 import SubscriptionPlansPage from '../pages/SubscriptionPlansPage';
 import MockPaymentPage from '../pages/MockPaymentPage';
 import PaymentSuccessPage from '../pages/PaymentSuccessPage';
 import VisualizationTest from '../pages/VisualizationTest';
+import FingerprintDebug from '../components/debug/FingerprintDebug';
 import NotFound from '../pages/NotFound';
 
 // Import admin components
@@ -53,6 +54,7 @@ const AppRoutes = () => {
       <Route path="/mock-payment" element={<MockPaymentPage />} />
       <Route path="/subscription/success" element={<PaymentSuccessPage />} />
       <Route path="/test/visualization" element={<VisualizationTest />} />
+      <Route path="/debug/fingerprint" element={<FingerprintDebug />} />
 
       {/* Protected app routes */}
       <Route path="/app" element={
@@ -62,7 +64,7 @@ const AppRoutes = () => {
       }>
         <Route index element={<Dashboard />} />
         <Route path="files" element={<Files />} />
-        <Route path="upload" element={<FileUpload />} />
+        <Route path="upload" element={<FileUploadEnhanced />} />
         <Route path="visualize/:fileId" element={<Visualize />} />
         <Route path="profile" element={<Profile />} />
         
