@@ -17,6 +17,52 @@ const ColumnSelector = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Normalize column type to handle different formats
+  const normalizeColumnType = (type) => {
+    if (typeof type === 'object' && type.dataType) {
+      return type.dataType;
+    }
+    return type;
+  };
+
+  // Map file parser types to expected types
+  const mapColumnType = (type) => {
+    const normalizedType = normalizeColumnType(type);
+    
+    const typeMapping = {
+      'text': 'text',
+      'integer': 'numeric',
+      'decimal': 'numeric',
+      'date': 'date',
+      'boolean': 'text',
+      'string': 'text',
+      'numeric': 'numeric',
+      'category': 'text',
+      'null': 'text'
+    };
+    
+    return typeMapping[normalizedType] || 'text';
+  };
+
+  // Check if a column type is allowed
+  const isTypeAllowed = (columnType, allowedTypes) => {
+    if (allowedTypes.includes('all')) return true;
+    
+    const mappedType = mapColumnType(columnType);
+    
+    // Create mapping for allowed types
+    const allowedTypeMapping = {
+      'text': ['text', 'category', 'string'],
+      'numeric': ['numeric'],
+      'date': ['date']
+    };
+    
+    return allowedTypes.some(allowedType => {
+      const mappedAllowedTypes = allowedTypeMapping[allowedType] || [allowedType];
+      return mappedAllowedTypes.includes(mappedType) || allowedType === mappedType;
+    });
+  };
+
   // Filter columns based on allowed types and search term
   const filteredColumns = useMemo(() => {
     let filtered = columns;
@@ -25,7 +71,7 @@ const ColumnSelector = ({
     if (allowedTypes.length > 0 && !allowedTypes.includes('all')) {
       filtered = columns.filter(col => {
         const type = columnTypes[col];
-        return allowedTypes.includes(type);
+        return isTypeAllowed(type, allowedTypes);
       });
     }
 
@@ -40,31 +86,34 @@ const ColumnSelector = ({
   }, [columns, columnTypes, allowedTypes, searchTerm]);
 
   const getColumnTypeIcon = (type) => {
-    switch (type) {
+    const mappedType = mapColumnType(type);
+    switch (mappedType) {
       case 'numeric':
         return Icons.Hash;
       case 'date':
         return Icons.Calendar;
       case 'text':
-      case 'category':
-        return Icons.Type;
       default:
-        return Icons.Database;
+        return Icons.Type;
     }
   };
 
   const getColumnTypeColor = (type) => {
-    switch (type) {
+    const mappedType = mapColumnType(type);
+    switch (mappedType) {
       case 'numeric':
         return 'text-blue-600 bg-blue-50';
       case 'date':
         return 'text-green-600 bg-green-50';
       case 'text':
-      case 'category':
-        return 'text-purple-600 bg-purple-50';
       default:
-        return 'text-gray-600 bg-gray-50';
+        return 'text-purple-600 bg-purple-50';
     }
+  };
+
+  const getDisplayType = (type) => {
+    const mappedType = mapColumnType(type);
+    return mappedType;
   };
 
   const selectedColumn = columns.find(col => col === value);
@@ -110,7 +159,7 @@ const ColumnSelector = ({
                   })()}
                   <span className="text-[#5A827E]">{selectedColumn}</span>
                   <span className="text-xs text-[#5A827E]/60 capitalize">
-                    ({selectedType})
+                    ({getDisplayType(selectedType)})
                   </span>
                 </>
               ) : (
@@ -174,7 +223,7 @@ const ColumnSelector = ({
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{column}</div>
                           <div className="text-xs text-[#5A827E]/60 capitalize">
-                            {type} column
+                            {getDisplayType(type)} column
                           </div>
                         </div>
                         {isSelected && (
@@ -208,14 +257,14 @@ const ColumnSelector = ({
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-medium text-[#5A827E]">Column Preview</h4>
             <span className={`px-2 py-1 text-xs rounded-full ${getColumnTypeColor(selectedType)}`}>
-              {selectedType}
+              {getDisplayType(selectedType)}
             </span>
           </div>
           <div className="text-sm text-[#5A827E]/70">
-            <strong>{selectedColumn}</strong> - This column contains {selectedType} data
-            {selectedType === 'numeric' && ' suitable for calculations and aggregations'}
-            {selectedType === 'date' && ' suitable for time-based analysis'}
-            {(selectedType === 'text' || selectedType === 'category') && ' suitable for grouping and categorization'}
+            <strong>{selectedColumn}</strong> - This column contains {getDisplayType(selectedType)} data
+            {getDisplayType(selectedType) === 'numeric' && ' suitable for calculations and aggregations'}
+            {getDisplayType(selectedType) === 'date' && ' suitable for time-based analysis'}
+            {getDisplayType(selectedType) === 'text' && ' suitable for grouping and categorization'}
           </div>
         </div>
       )}

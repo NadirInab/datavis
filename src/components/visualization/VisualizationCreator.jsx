@@ -18,6 +18,33 @@ const VisualizationCreator = ({
   const [errors, setErrors] = useState({});
   const [step, setStep] = useState(1); // 1: Chart Type, 2: Configuration, 3: Preview
 
+  // Normalize column type to handle different formats
+  const normalizeColumnType = (type) => {
+    if (typeof type === 'object' && type.dataType) {
+      return type.dataType;
+    }
+    return type;
+  };
+
+  // Map file parser types to expected types
+  const mapColumnType = (type) => {
+    const normalizedType = normalizeColumnType(type);
+    
+    const typeMapping = {
+      'text': 'text',
+      'integer': 'numeric',
+      'decimal': 'numeric',
+      'date': 'date',
+      'boolean': 'text',
+      'string': 'text',
+      'numeric': 'numeric',
+      'category': 'text',
+      'null': 'text'
+    };
+    
+    return typeMapping[normalizedType] || 'text';
+  };
+
   // Get column options based on their data types
   const columnOptions = useMemo(() => {
     if (!file || !file.columnTypes) return { numeric: [], category: [], date: [], all: [] };
@@ -29,11 +56,13 @@ const VisualizationCreator = ({
     
     Object.entries(file.columnTypes).forEach(([column, type]) => {
       all.push(column);
-      if (type === 'numeric') {
+      const mappedType = mapColumnType(type);
+      
+      if (mappedType === 'numeric') {
         numeric.push(column);
-      } else if (type === 'date') {
+      } else if (mappedType === 'date') {
         date.push(column);
-      } else if (type !== 'null') {
+      } else if (mappedType !== 'null') {
         category.push(column);
       }
     });
@@ -261,13 +290,91 @@ const VisualizationCreator = ({
                 {['bar', 'line', 'area'].includes(formData.type) && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <ColumnSelector
-                      label="X-Axis Column"
+                      label="X-Axis Column *"
                       description="Column for the horizontal axis"
                       value={formData.columns.x || ''}
                       onChange={(value) => updateColumns('x', value)}
                       columns={[...columnOptions.category, ...columnOptions.date]}
                       columnTypes={file.columnTypes}
                       allowedTypes={['text', 'category', 'date']}
+                      required
+                      error={errors.xColumn}
+                    />
+                    
+                    <ColumnSelector
+                      label="Y-Axis Column *"
+                      description="Column for the vertical axis"
+                      value={formData.columns.y || ''}
+                      onChange={(value) => updateColumns('y', value)}
+                      columns={columnOptions.numeric}
+                      columnTypes={file.columnTypes}
+                      allowedTypes={['numeric']}
+                      required
+                      error={errors.yColumn}
+                    />
+                  </div>
+                )}
+
+                {/* Radar Chart Configuration */}
+                {formData.type === 'radar' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <ColumnSelector
+                      label="Subject Column"
+                      description="Column containing the subjects to compare"
+                      value={formData.columns.subject || ''}
+                      onChange={(value) => updateColumns('subject', value)}
+                      columns={columnOptions.category}
+                      columnTypes={file.columnTypes}
+                      allowedTypes={['text', 'category']}
+                      required
+                      error={errors.subjectColumn}
+                    />
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[#5A827E] mb-2">
+                        Metrics Columns *
+                      </label>
+                      <p className="text-sm text-[#5A827E]/70 mb-2">
+                        Select multiple numeric columns to compare
+                      </p>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {columnOptions.numeric.map(column => (
+                          <label key={column} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.columns.metrics?.includes(column) || false}
+                              onChange={(e) => {
+                                const currentMetrics = formData.columns.metrics || [];
+                                if (e.target.checked) {
+                                  updateColumns('metrics', [...currentMetrics, column]);
+                                } else {
+                                  updateColumns('metrics', currentMetrics.filter(m => m !== column));
+                                }
+                              }}
+                              className="rounded border-[#84AE92]/30 text-[#84AE92] focus:ring-[#84AE92]"
+                            />
+                            <span className="text-sm text-[#5A827E]">{column}</span>
+                          </label>
+                        ))}
+                      </div>
+                      {errors.metricsColumn && (
+                        <p className="mt-1 text-sm text-red-600">{errors.metricsColumn}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bubble Chart Configuration */}
+                {formData.type === 'bubble' && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <ColumnSelector
+                      label="X-Axis Column"
+                      description="Column for the horizontal axis"
+                      value={formData.columns.x || ''}
+                      onChange={(value) => updateColumns('x', value)}
+                      columns={columnOptions.numeric}
+                      columnTypes={file.columnTypes}
+                      allowedTypes={['numeric']}
                       required
                       error={errors.xColumn}
                     />
@@ -282,6 +389,18 @@ const VisualizationCreator = ({
                       allowedTypes={['numeric']}
                       required
                       error={errors.yColumn}
+                    />
+
+                    <ColumnSelector
+                      label="Size Column"
+                      description="Column for bubble size"
+                      value={formData.columns.z || ''}
+                      onChange={(value) => updateColumns('z', value)}
+                      columns={columnOptions.numeric}
+                      columnTypes={file.columnTypes}
+                      allowedTypes={['numeric']}
+                      required
+                      error={errors.zColumn}
                     />
                   </div>
                 )}
@@ -309,9 +428,16 @@ const VisualizationCreator = ({
                   {Object.entries(formData.columns).map(([key, value]) => (
                     <div key={key}>
                       <span className="text-sm text-[#5A827E]/70 capitalize">
-                        {key === 'name' ? 'Category' : key === 'value' ? 'Value' : key}-Axis:
+                        {key === 'name' ? 'Category' : 
+                         key === 'value' ? 'Value' : 
+                         key === 'subject' ? 'Subject' :
+                         key === 'metrics' ? 'Metrics' :
+                         key === 'z' ? 'Size' :
+                         key}-Axis:
                       </span>
-                      <p className="font-medium text-[#5A827E]">{value}</p>
+                      <p className="font-medium text-[#5A827E]">
+                        {Array.isArray(value) ? value.join(', ') : value}
+                      </p>
                     </div>
                   ))}
                 </div>
