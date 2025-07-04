@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/FirebaseAuthContext';
 import {
   exportChartAsPNG,
@@ -20,7 +21,10 @@ const ExportMenu = ({
   onExportComplete,
   onExportError
 }) => {
-  const { currentUser } = useAuth();
+  // Safe destructuring with fallback values
+  const authContext = useAuth();
+  const { currentUser } = authContext || {};
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportType, setExportType] = useState(null);
@@ -29,8 +33,24 @@ const ExportMenu = ({
   const exportData = data || file?.data || [];
   const exportVisualization = visualization || (file?.visualizations && file.visualizations[0]) || null;
 
+  // Handle upgrade button click
+  const handleUpgradeClick = () => {
+    setIsOpen(false); // Close the export menu
+    navigate('/subscription-plans');
+  };
+
   const handleExport = async (type) => {
-    if (!canExport(currentUser?.subscription, type)) {
+    // Validate chartElementId is provided for chart exports
+    if ((type === 'png' || type === 'pdf') && !chartElementId) {
+      const errorMessage = 'Chart element ID is required for chart exports';
+      console.error(errorMessage);
+      onExportError?.(errorMessage);
+      return;
+    }
+
+    // Check subscription permissions with fallback
+    const userSubscription = currentUser?.subscription || 'visitor';
+    if (!canExport(userSubscription, type)) {
       onExportError?.('This export format is not available in your current subscription plan.');
       return;
     }
@@ -40,6 +60,8 @@ const ExportMenu = ({
     onExportStart?.(type);
 
     try {
+      console.log(`Starting ${type} export with chart element ID: ${chartElementId}`);
+      
       switch (type) {
         case 'png':
           await exportChartAsPNG(chartElementId, `${filename}_chart`);
@@ -80,7 +102,8 @@ const ExportMenu = ({
   };
 
   const isDisabled = (type) => {
-    return !canExport(currentUser?.subscription, type);
+    const userSubscription = currentUser?.subscription || 'visitor';
+    return !canExport(userSubscription, type);
   };
 
   const exportOptions = [
@@ -200,7 +223,10 @@ const ExportMenu = ({
                   <p className="mt-1">
                     Upgrade to Pro for PDF exports or Enterprise for advanced features.
                   </p>
-                  <button className="mt-2 text-indigo-600 hover:text-indigo-500 font-medium">
+                  <button
+                    onClick={handleUpgradeClick}
+                    className="mt-2 text-indigo-600 hover:text-indigo-500 font-medium transition-colors duration-200"
+                  >
                     View Plans →
                   </button>
                 </div>
@@ -222,3 +248,5 @@ const ExportMenu = ({
 };
 
 export default ExportMenu;
+
+

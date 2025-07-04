@@ -3,12 +3,21 @@ import { Link } from 'react-router-dom';
 import Button, { Icons } from '../components/ui/Button';
 import { FeatureCard } from '../components/ui/Card';
 import { useAuth } from '../context/FirebaseAuthContext';
+import SEOHead from '../components/SEO/SEOHead';
 
 const LandingPage = () => {
   const { currentUser } = useAuth();
 
   return (
-    <div className="bg-gradient-to-br from-highlight-50 via-white to-accent-50 min-h-screen">
+    <>
+      <SEOHead
+        pageKey="home"
+        customTitle="CSV Analytics Studio - Professional Data Visualization & Business Intelligence Dashboard"
+        customDescription="Transform your CSV files into powerful business insights. Create interactive dashboards, analyze spreadsheet data, and visualize trends with our professional analytics platform. Free trial available."
+        customKeywords="csv analytics dashboard, data visualization tool, business intelligence dashboard, spreadsheet analysis software, csv data processing, online csv analyzer"
+      />
+
+      <div className="bg-gradient-to-br from-[#FAFFCA] via-white to-[#B9D4AA]/20 min-h-screen">
       {/* Hero section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-500/10 via-secondary-500/5 to-accent-500/10"></div>
@@ -20,31 +29,36 @@ const LandingPage = () => {
               </div>
             </div>
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6">
-              <span className="block bg-gradient-to-r from-primary-600 via-secondary-600 to-accent-600 bg-clip-text text-transparent">
-                Visualize Your Data
+              <span className="block bg-gradient-to-r from-[#5A827E] via-[#84AE92] to-[#B9D4AA] bg-clip-text text-transparent">
+                Professional CSV Analytics
               </span>
-              <span className="block text-gray-800 mt-2">
-                with AI Power
+              <span className="block text-[#5A827E] mt-2">
+                & Data Visualization Dashboard
               </span>
             </h1>
-            <p className="mt-6 max-w-3xl mx-auto text-xl text-gray-600 leading-relaxed">
-              Upload your CSV files and instantly get beautiful, interactive data visualizations powered by AI.
-              Analyze trends, share insights, and make data-driven decisions faster than ever.
+            <p className="mt-6 max-w-3xl mx-auto text-xl text-[#5A827E]/80 leading-relaxed">
+              Transform your spreadsheet data into powerful business intelligence dashboards.
+              Our professional CSV analytics platform helps you analyze data, create stunning visualizations,
+              and generate actionable insights for better business decisions.
             </p>
 
             {/* Feature highlights */}
-            <div className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-gray-600">
-              <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full border border-gray-200">
-                <Icons.Upload className="w-4 h-4 text-primary-500" />
-                <span>Instant Upload</span>
+            <div className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-[#5A827E]/70">
+              <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full border border-[#84AE92]/20">
+                <Icons.Upload className="w-4 h-4 text-[#5A827E]" />
+                <span>CSV File Processing</span>
               </div>
-              <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full border border-gray-200">
-                <Icons.Chart className="w-4 h-4 text-secondary-500" />
-                <span>8+ Chart Types</span>
+              <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full border border-[#84AE92]/20">
+                <Icons.BarChart className="w-4 h-4 text-[#84AE92]" />
+                <span>Business Intelligence</span>
               </div>
-              <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full border border-gray-200">
-                <Icons.Download className="w-4 h-4 text-accent-500" />
-                <span>Export Ready</span>
+              <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full border border-[#84AE92]/20">
+                <Icons.TrendingUp className="w-4 h-4 text-[#B9D4AA]" />
+                <span>Analytics Dashboard</span>
+              </div>
+              <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full border border-[#84AE92]/20">
+                <Icons.Download className="w-4 h-4 text-[#5A827E]" />
+                <span>Professional Reports</span>
               </div>
             </div>
 

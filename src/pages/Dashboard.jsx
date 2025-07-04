@@ -5,7 +5,7 @@ import StatsCard from '../components/StatsCard';
 import Button from '../components/ui/Button';
 import { ChartCard, FileCard } from '../components/ui/Card';
 import { CardSkeleton, FileListSkeleton } from '../components/loading/SkeletonLoader';
-import VisitorLimitBanner from '../components/visitor/VisitorLimitBanner';
+import VisitorBanner from '../components/visitor/VisitorBanner';
 
 // Define Icons if not imported from Button
 const Icons = {
@@ -130,8 +130,8 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
-      {/* Visitor Limit Banner */}
-      <VisitorLimitBanner />
+      {/* Visitor Banner */}
+      <VisitorBanner />
 
       {/* Welcome Section - Optimized for Full Width */}
       <div className="bg-gradient-to-r from-[#5A827E]/5 to-[#84AE92]/5 rounded-2xl p-6 sm:p-8">

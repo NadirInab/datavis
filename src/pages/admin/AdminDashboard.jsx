@@ -4,9 +4,13 @@ import UserManagement from '../../components/admin/UserManagement';
 import SystemMonitoring from '../../components/admin/SystemMonitoring';
 import PaymentManagement from '../../components/admin/PaymentManagement';
 import DatabaseManager from '../../components/admin/DatabaseManager';
+import EnhancedDatabaseManager from '../../components/admin/EnhancedDatabaseManager';
+import DatabaseManagerTest from '../../components/admin/DatabaseManagerTest';
 import AdminTest from '../../components/admin/AdminTest';
 import FeatureManagement from '../../components/admin/FeatureManagement';
 import UsageAnalytics from '../../components/admin/UsageAnalytics';
+import RoleBasedTester from '../../components/testing/RoleBasedTester';
+import ComprehensiveAudit from '../../components/testing/ComprehensiveAudit';
 
 const AdminDashboard = () => {
   const { currentUser, isAdmin } = useAuth();
@@ -30,7 +34,9 @@ const AdminDashboard = () => {
   }
 
   const tabs = [
+    { id: 'audit', name: 'Full Audit', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: 'test', name: 'API Test', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { id: 'role-test', name: 'Role Testing', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547A1.934 1.934 0 004 17.5c0 .775.301 1.52.828 2.047l.724.724a2 2 0 002.828 0l4.096-4.096a2 2 0 012.828 0l4.096 4.096a2 2 0 002.828 0l.724-.724A2.934 2.934 0 0020 17.5a1.934 1.934 0 00-.572-1.072z' },
     { id: 'features', name: 'Features', icon: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z' },
     { id: 'analytics', name: 'Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
     { id: 'overview', name: 'Overview', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
@@ -42,8 +48,12 @@ const AdminDashboard = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'audit':
+        return <ComprehensiveAudit />;
       case 'test':
         return <AdminTest />;
+      case 'role-test':
+        return <RoleBasedTester />;
       case 'features':
         return <FeatureManagement />;
       case 'analytics':
@@ -57,9 +67,9 @@ const AdminDashboard = () => {
       case 'system':
         return <SystemMonitoring />;
       case 'database':
-        return <DatabaseManager />;
+        return <DatabaseManagerTest />;
       default:
-        return <AdminTest />;
+        return <ComprehensiveAudit />;
     }
   };
 

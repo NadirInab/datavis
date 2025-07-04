@@ -222,27 +222,23 @@ const getVisitorInfo = async (req, res) => {
       });
     }
 
-    // Find visitor record
-    const visitor = await User.findOne({
-      'visitorSession.sessionId': sessionId,
-      firebaseUid: { $regex: /^visitor_/ }
-    });
-
-    if (!visitor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Visitor session not found'
-      });
-    }
+    // Use optimized visitor session service (no database pollution)
+    const visitorSessionService = require('../services/visitorSessionService');
+    const sessionData = visitorSessionService.getSession(sessionId);
 
     res.status(200).json({
       success: true,
       data: {
-        sessionId: visitor.visitorSession.sessionId,
-        filesUploaded: visitor.visitorSession.filesUploaded,
-        fileLimit: visitor.visitorFileLimit,
-        remainingFiles: Math.max(0, visitor.visitorFileLimit - visitor.visitorSession.filesUploaded),
-        lastActivity: visitor.visitorSession.lastActivity
+        sessionId: sessionData.sessionId,
+        filesUploaded: sessionData.filesUploaded,
+        fileLimit: sessionData.fileLimit,
+        remainingFiles: sessionData.remainingFiles,
+        isLimitReached: sessionData.isLimitReached,
+        lastActivity: sessionData.lastActivity,
+        features: sessionData.features,
+        canUpload: sessionData.remainingFiles > 0,
+        upgradeMessage: sessionData.isLimitReached ?
+          'Create a free account to get 5 more uploads at no cost!' : null
       }
     });
 

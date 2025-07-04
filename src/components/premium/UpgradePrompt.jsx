@@ -15,11 +15,11 @@ const UpgradePrompt = ({
   const navigate = useNavigate();
 
   const handleUpgrade = () => {
-    navigate('/app/subscription-plans', { 
-      state: { 
+    navigate('/subscription-plans', {
+      state: {
         highlightTier: tierKey,
-        feature: feature 
-      } 
+        feature: feature
+      }
     });
   };
 

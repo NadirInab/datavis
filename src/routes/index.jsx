@@ -13,6 +13,10 @@ import Visualize from '../pages/Visualize';
 import FileUpload from '../pages/FileUpload';
 import Files from '../pages/Files';
 import Profile from '../pages/Profile';
+import SubscriptionPlansPage from '../pages/SubscriptionPlansPage';
+import MockPaymentPage from '../pages/MockPaymentPage';
+import PaymentSuccessPage from '../pages/PaymentSuccessPage';
+import VisualizationTest from '../pages/VisualizationTest';
 import NotFound from '../pages/NotFound';
 
 // Import admin components
@@ -44,6 +48,11 @@ const AppRoutes = () => {
           <SignUp />
         </PublicRoute>
       } />
+
+      <Route path="/subscription-plans" element={<SubscriptionPlansPage />} />
+      <Route path="/mock-payment" element={<MockPaymentPage />} />
+      <Route path="/subscription/success" element={<PaymentSuccessPage />} />
+      <Route path="/test/visualization" element={<VisualizationTest />} />
 
       {/* Protected app routes */}
       <Route path="/app" element={

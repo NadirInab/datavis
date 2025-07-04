@@ -6,7 +6,7 @@ const paymentSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  stripePaymentIntentId: {
+  paymentId: {
     type: String,
     required: true,
     unique: true
@@ -22,12 +22,12 @@ const paymentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed', 'refunded'],
+    enum: ['pending', 'completed', 'failed', 'cancelled'],
     default: 'pending'
   },
-  planId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'SubscriptionPlan',
+  planType: {
+    type: String,
+    enum: ['free', 'pro', 'enterprise'],
     required: true
   },
   billingCycle: {
@@ -35,13 +35,12 @@ const paymentSchema = new mongoose.Schema({
     enum: ['monthly', 'yearly'],
     required: true
   },
-  refundId: {
-    type: String
+  paymentMethod: {
+    type: String,
+    enum: ['mock', 'manual', 'admin'],
+    default: 'mock'
   },
-  refundedAt: {
-    type: Date
-  },
-  refundReason: {
+  notes: {
     type: String
   },
   metadata: {
@@ -53,7 +52,8 @@ const paymentSchema = new mongoose.Schema({
 
 // Indexes for better query performance
 paymentSchema.index({ userId: 1, createdAt: -1 });
-paymentSchema.index({ stripePaymentIntentId: 1 });
+paymentSchema.index({ paymentId: 1 });
 paymentSchema.index({ status: 1 });
+paymentSchema.index({ planType: 1 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

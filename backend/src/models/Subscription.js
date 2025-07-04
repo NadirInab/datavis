@@ -28,10 +28,7 @@ const subscriptionPlanSchema = new mongoose.Schema({
         type: String,
         default: 'USD'
       },
-      stripePriceId: {
-        type: String,
-        default: null
-      }
+
     },
     yearly: {
       amount: {
@@ -43,10 +40,7 @@ const subscriptionPlanSchema = new mongoose.Schema({
         type: String,
         default: 'USD'
       },
-      stripePriceId: {
-        type: String,
-        default: null
-      },
+
       discount: {
         type: Number,
         default: 0,
@@ -159,20 +153,11 @@ const userSubscriptionSchema = new mongoose.Schema({
     default: 'USD'
   },
   
-  // Stripe integration
-  stripeCustomerId: {
+  // Payment method
+  paymentMethod: {
     type: String,
-    default: null
-  },
-
-  stripeSubscriptionId: {
-    type: String,
-    default: null
-  },
-  
-  stripePriceId: {
-    type: String,
-    default: null
+    enum: ['mock', 'manual', 'admin'],
+    default: 'mock'
   },
   
   // Subscription periods

@@ -2,6 +2,8 @@ const User = require('../models/User');
 const File = require('../models/File');
 const { SubscriptionPlan, UserSubscription } = require('../models/Subscription');
 const UsageTracking = require('../models/UsageTracking');
+const Migration = require('../models/Migration');
+const migrationManager = require('../utils/migrationManager');
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
 
@@ -771,6 +773,218 @@ const getUsageAnalytics = async (req, res) => {
   }
 };
 
+// @desc    Run database migrations
+// @route   POST /api/v1/admin/db/migrate
+// @access  Admin
+const runMigrations = async (req, res) => {
+  try {
+    const { direction = 'up', version = null } = req.body;
+
+    logger.info(`Running migrations ${direction}`, {
+      direction,
+      version,
+      adminUser: req.user.id
+    });
+
+    let result;
+    if (direction === 'up') {
+      result = await migrationManager.runUp(version);
+    } else if (direction === 'down') {
+      result = await migrationManager.runDown(version);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid migration direction. Use "up" or "down".'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Migrations ${direction} completed successfully`,
+      data: result
+    });
+
+  } catch (error) {
+    logger.error('Migration error:', error);
+    res.status(500).json({
+      success: false,
+      message: `Migration failed: ${error.message}`,
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get migration status and history
+// @route   GET /api/v1/admin/db/migrations
+// @access  Admin
+const getMigrationStatus = async (req, res) => {
+  try {
+    const status = await migrationManager.getStatus();
+
+    res.status(200).json({
+      success: true,
+      data: status
+    });
+
+  } catch (error) {
+    logger.error('Get migration status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get migration status',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get database performance metrics
+// @route   GET /api/v1/admin/db/performance
+// @access  Admin
+const getPerformanceMetrics = async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const admin = db.admin();
+
+    // Get server status
+    const serverStatus = await admin.serverStatus();
+
+    // Get database stats
+    const dbStats = await db.stats();
+
+    const metrics = {
+      connections: {
+        current: serverStatus.connections.current,
+        available: serverStatus.connections.available,
+        totalCreated: serverStatus.connections.totalCreated
+      },
+      memory: {
+        resident: Math.round(serverStatus.mem.resident),
+        virtual: Math.round(serverStatus.mem.virtual),
+        mapped: Math.round(serverStatus.mem.mapped || 0)
+      },
+      operations: {
+        insert: serverStatus.opcounters.insert,
+        query: serverStatus.opcounters.query,
+        update: serverStatus.opcounters.update,
+        delete: serverStatus.opcounters.delete
+      },
+      database: {
+        collections: dbStats.collections,
+        objects: dbStats.objects,
+        avgObjSize: Math.round(dbStats.avgObjSize || 0),
+        dataSize: Math.round(dbStats.dataSize / 1024 / 1024), // MB
+        storageSize: Math.round(dbStats.storageSize / 1024 / 1024), // MB
+        indexSize: Math.round(dbStats.indexSize / 1024 / 1024) // MB
+      },
+      uptime: Math.round(serverStatus.uptime / 3600) // hours
+    };
+
+    res.status(200).json({
+      success: true,
+      data: metrics
+    });
+
+  } catch (error) {
+    logger.error('Get performance metrics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get performance metrics',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get collection data with pagination
+// @route   GET /api/v1/admin/db/data/:collection
+// @access  Admin
+const getCollectionData = async (req, res) => {
+  try {
+    const { collection } = req.params;
+    const {
+      page = 1,
+      limit = 10,
+      sort = '_id',
+      order = -1,
+      search = ''
+    } = req.query;
+
+    // Validate collection name
+    const allowedCollections = ['users', 'files', 'usersubscriptions', 'subscriptionplans', 'usagetracking', 'migrations'];
+    if (!allowedCollections.includes(collection.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid collection name',
+        allowedCollections
+      });
+    }
+
+    const db = mongoose.connection.db;
+
+    // Check if collection exists
+    const collections = await db.listCollections({ name: collection }).toArray();
+    if (collections.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `Collection '${collection}' not found`
+      });
+    }
+
+    const collectionObj = db.collection(collection);
+
+    // Build search filter
+    let filter = {};
+    if (search) {
+      // Create a text search across multiple fields
+      const searchRegex = { $regex: search, $options: 'i' };
+      filter = {
+        $or: [
+          { email: searchRegex },
+          { name: searchRegex },
+          { title: searchRegex },
+          { description: searchRegex },
+          { status: searchRegex },
+          { type: searchRegex },
+          { tier: searchRegex }
+        ]
+      };
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const sortOrder = parseInt(order);
+
+    // Get total count
+    const total = await collectionObj.countDocuments(filter);
+    const pages = Math.ceil(total / parseInt(limit));
+
+    // Get documents
+    const documents = await collectionObj
+      .find(filter)
+      .sort({ [sort]: sortOrder })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .toArray();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        documents,
+        total,
+        pages,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get collection data error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get collection data',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getDatabaseStatus,
   getCollectionStats,
@@ -780,7 +994,11 @@ module.exports = {
   updateUserStatus,
   updateUserRole,
   getSystemStatus,
-  getUsageAnalytics
+  getUsageAnalytics,
+  runMigrations,
+  getMigrationStatus,
+  getPerformanceMetrics,
+  getCollectionData
 };
 
 

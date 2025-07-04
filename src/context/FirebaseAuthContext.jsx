@@ -39,26 +39,33 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Initialize visitor session for unauthenticated users
+  // Initialize optimized visitor session for unauthenticated users
   const initializeVisitorSession = async () => {
     try {
       let sessionId = apiUtils.getSessionId();
       if (!sessionId) {
         sessionId = apiUtils.generateSessionId();
       }
-      
-      // Get visitor info from backend
+
+      // Get visitor info from optimized backend service
       const response = await authAPI.getVisitorInfo();
-      setVisitorSession(response.data);
+      setVisitorSession({
+        ...response.data,
+        features: response.data.features || ['csv_upload', 'google_sheets_import', 'basic_charts', 'chart_export_png']
+      });
     } catch (error) {
       console.warn('Could not initialize visitor session:', error);
-      // Create local visitor session as fallback
+      // Create enhanced local visitor session as fallback
       setVisitorSession({
         sessionId: apiUtils.getSessionId(),
         filesUploaded: 0,
-        fileLimit: 2,
-        remainingFiles: 2,
-        lastActivity: new Date().toISOString()
+        fileLimit: 3, // Updated visitor limit
+        remainingFiles: 3,
+        isLimitReached: false,
+        canUpload: true,
+        lastActivity: new Date().toISOString(),
+        features: ['csv_upload', 'google_sheets_import', 'basic_charts', 'chart_export_png'],
+        upgradeMessage: null
       });
     }
   };

@@ -1,177 +1,78 @@
 const express = require('express');
 const router = express.Router();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const { protect, authorize } = require('../middleware/auth');
 const User = require('../models/User');
-const { SubscriptionPlan } = require('../models/Subscription');
 const logger = require('../utils/logger');
 
 // Payment model for tracking transactions
 const Payment = require('../models/Payment');
 
-// @route   POST /api/v1/payments/create-intent
-// @desc    Create payment intent for subscription
+// @route   POST /api/v1/payments/mock-payment
+// @desc    Create mock payment for subscription (simplified)
 // @access  Private
-router.post('/create-intent', protect, async (req, res) => {
+router.post('/mock-payment', protect, async (req, res) => {
   try {
-    const { planId, billingCycle = 'monthly' } = req.body;
+    const { planType, billingCycle = 'monthly', amount } = req.body;
 
-    // Get subscription plan
-    const plan = await SubscriptionPlan.findById(planId);
-    if (!plan) {
-      return res.status(404).json({
-        success: false,
-        message: 'Subscription plan not found'
-      });
-    }
-
-    // Calculate amount based on billing cycle
-    const amount = billingCycle === 'yearly'
-      ? plan.pricing.yearly.amount
-      : plan.pricing.monthly.amount;
-
-    if (amount === 0) {
+    if (!planType || !['pro', 'enterprise'].includes(planType)) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot create payment intent for free plan'
+        message: 'Invalid plan type'
       });
     }
 
-    // Create Stripe customer if doesn't exist
-    let customer;
-    if (req.user.stripeCustomerId) {
-      customer = await stripe.customers.retrieve(req.user.stripeCustomerId);
-    } else {
-      customer = await stripe.customers.create({
-        email: req.user.email,
-        name: req.user.name,
-        metadata: {
-          userId: req.user._id.toString()
-        }
-      });
-
-      // Save customer ID to user
-      req.user.stripeCustomerId = customer.id;
-      await req.user.save();
-    }
-
-    // Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: 'usd',
-      customer: customer.id,
-      metadata: {
-        userId: req.user._id.toString(),
-        planId: planId,
-        billingCycle: billingCycle
-      },
-      automatic_payment_methods: {
-        enabled: true,
-      },
-    });
-
-    res.status(200).json({
-      success: true,
-      data: {
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-        amount,
-        currency: 'usd',
-        plan: {
-          name: plan.name,
-          tier: plan.tier,
-          billingCycle
-        }
-      }
-    });
-  } catch (error) {
-    logger.error('Create payment intent error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create payment intent',
-      error: error.message
-    });
-  }
-});
-
-// @route   POST /api/v1/payments/confirm
-// @desc    Confirm payment and update subscription
-// @access  Private
-router.post('/confirm', protect, async (req, res) => {
-  try {
-    const { paymentIntentId } = req.body;
-
-    // Retrieve payment intent from Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-    if (paymentIntent.status !== 'succeeded') {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment not completed'
-      });
-    }
-
-    const { planId, billingCycle } = paymentIntent.metadata;
-
-    // Get subscription plan
-    const plan = await SubscriptionPlan.findById(planId);
-    if (!plan) {
-      return res.status(404).json({
-        success: false,
-        message: 'Subscription plan not found'
-      });
-    }
-
-    // Update user subscription
-    req.user.subscription = {
-      tier: plan.tier,
-      status: 'active',
-      planId: plan._id,
-      billingCycle,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + (billingCycle === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000),
-      stripeSubscriptionId: paymentIntent.id
-    };
-
-    await req.user.save();
-
-    // Create payment record
+    // Create mock payment record
     const payment = new Payment({
       userId: req.user._id,
-      stripePaymentIntentId: paymentIntentId,
-      amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
+      paymentId: `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      amount: amount || (planType === 'pro' ? 9.99 : 29.99),
+      currency: 'usd',
       status: 'completed',
-      planId: plan._id,
+      planType,
       billingCycle,
-      metadata: paymentIntent.metadata
+      paymentMethod: 'mock'
     });
 
     await payment.save();
 
-    logger.info(`Payment confirmed for user ${req.user.email}, plan: ${plan.name}`);
+    // Update user subscription
+    await User.findByIdAndUpdate(req.user._id, {
+      subscription: planType,
+      subscriptionStatus: 'active',
+      subscriptionStartDate: new Date(),
+      subscriptionEndDate: new Date(Date.now() + (billingCycle === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000)
+    });
 
-    res.status(200).json({
+    logger.info(`Mock payment created for user ${req.user._id}`, {
+      paymentId: payment.paymentId,
+      planType,
+      amount: payment.amount
+    });
+
+    res.status(201).json({
       success: true,
-      message: 'Payment confirmed and subscription updated',
+      message: 'Mock payment processed successfully',
       data: {
-        subscription: req.user.subscription,
-        payment: payment
+        paymentId: payment.paymentId,
+        planType,
+        amount: payment.amount,
+        status: 'completed'
       }
     });
+
   } catch (error) {
-    logger.error('Confirm payment error:', error);
+    logger.error('Mock payment error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to confirm payment',
+      message: 'Payment processing failed',
       error: error.message
     });
   }
 });
 
 // @route   GET /api/v1/payments/history
-// @desc    Get payment history for user
+// @desc    Get user payment history
 // @access  Private
 router.get('/history', protect, async (req, res) => {
   try {
@@ -179,7 +80,6 @@ router.get('/history', protect, async (req, res) => {
     const skip = (page - 1) * limit;
 
     const payments = await Payment.find({ userId: req.user._id })
-      .populate('planId', 'name tier')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -191,123 +91,166 @@ router.get('/history', protect, async (req, res) => {
       data: {
         payments,
         pagination: {
-          current: parseInt(page),
-          total: Math.ceil(total / limit),
-          count: payments.length,
-          totalPayments: total
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
         }
       }
     });
+
   } catch (error) {
     logger.error('Get payment history error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get payment history',
+      message: 'Failed to retrieve payment history',
       error: error.message
     });
   }
 });
 
 // @route   GET /api/v1/payments/admin/history
-// @desc    Get all payment history (admin only)
-// @access  Admin
-router.get('/admin/history', protect, authorize('admin', 'super_admin'), async (req, res) => {
+// @desc    Get all payments (admin only)
+// @access  Private/Admin
+router.get('/admin/history', protect, authorize('admin'), async (req, res) => {
   try {
-    const { page = 1, limit = 20, userId, status } = req.query;
+    const { page = 1, limit = 20, status, userId } = req.query;
     const skip = (page - 1) * limit;
 
-    const filter = {};
-    if (userId) filter.userId = userId;
-    if (status) filter.status = status;
+    // Build query
+    const query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    if (userId) {
+      query.userId = userId;
+    }
 
-    const payments = await Payment.find(filter)
+    const payments = await Payment.find(query)
       .populate('userId', 'name email')
-      .populate('planId', 'name tier')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await Payment.countDocuments(filter);
+    const total = await Payment.countDocuments(query);
 
     res.status(200).json({
       success: true,
       data: {
         payments,
         pagination: {
-          current: parseInt(page),
-          total: Math.ceil(total / limit),
-          count: payments.length,
-          totalPayments: total
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
         }
       }
     });
+
   } catch (error) {
     logger.error('Get admin payment history error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get payment history',
+      message: 'Failed to retrieve payment history',
       error: error.message
     });
   }
 });
 
-// @route   POST /api/v1/payments/admin/refund
-// @desc    Process refund (admin only)
-// @access  Admin
-router.post('/admin/refund', protect, authorize('admin', 'super_admin'), async (req, res) => {
+// @route   POST /api/v1/payments/admin/manual
+// @desc    Create manual payment (admin only)
+// @access  Private/Admin
+router.post('/admin/manual', protect, authorize('admin'), async (req, res) => {
   try {
-    const { paymentId, reason } = req.body;
+    const { userId, planType, billingCycle = 'monthly', amount, notes } = req.body;
 
-    const payment = await Payment.findById(paymentId);
-    if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment not found'
-      });
-    }
-
-    if (payment.status === 'refunded') {
+    if (!userId || !planType || !amount) {
       return res.status(400).json({
         success: false,
-        message: 'Payment already refunded'
+        message: 'Missing required fields'
       });
     }
 
-    // Process refund with Stripe
-    const refund = await stripe.refunds.create({
-      payment_intent: payment.stripePaymentIntentId,
-      reason: reason || 'requested_by_customer'
-    });
-
-    // Update payment status
-    payment.status = 'refunded';
-    payment.refundId = refund.id;
-    payment.refundedAt = new Date();
-    payment.refundReason = reason;
-    await payment.save();
-
-    // Update user subscription if needed
-    const user = await User.findById(payment.userId);
-    if (user && user.subscription.stripeSubscriptionId === payment.stripePaymentIntentId) {
-      user.subscription.status = 'cancelled';
-      await user.save();
+    // Verify user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
     }
 
-    logger.info(`Refund processed for payment ${paymentId} by admin ${req.user.email}`);
+    // Create manual payment record
+    const payment = new Payment({
+      userId,
+      paymentId: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      amount,
+      currency: 'usd',
+      status: 'completed',
+      planType,
+      billingCycle,
+      paymentMethod: 'manual',
+      notes
+    });
+
+    await payment.save();
+
+    // Update user subscription
+    await User.findByIdAndUpdate(userId, {
+      subscription: planType,
+      subscriptionStatus: 'active',
+      subscriptionStartDate: new Date(),
+      subscriptionEndDate: new Date(Date.now() + (billingCycle === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000)
+    });
+
+    logger.info(`Manual payment created by admin ${req.user._id} for user ${userId}`, {
+      paymentId: payment.paymentId,
+      planType,
+      amount
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Manual payment created successfully',
+      data: payment
+    });
+
+  } catch (error) {
+    logger.error('Create manual payment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create manual payment',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/v1/payments/cancel-subscription
+// @desc    Cancel user subscription
+// @access  Private
+router.post('/cancel-subscription', protect, async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    // Update user subscription status
+    await User.findByIdAndUpdate(req.user._id, {
+      subscriptionStatus: 'cancelled',
+      subscriptionCancelledAt: new Date(),
+      subscriptionCancelReason: reason || 'User requested cancellation'
+    });
+
+    logger.info(`Subscription cancelled for user ${req.user._id}`, { reason });
 
     res.status(200).json({
       success: true,
-      message: 'Refund processed successfully',
-      data: {
-        payment,
-        refund
-      }
+      message: 'Subscription cancelled successfully'
     });
+
   } catch (error) {
-    logger.error('Process refund error:', error);
+    logger.error('Cancel subscription error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to process refund',
+      message: 'Failed to cancel subscription',
       error: error.message
     });
   }

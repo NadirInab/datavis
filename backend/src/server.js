@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
 require('dotenv').config();
 
 const connectDB = require('./database/connection');
@@ -14,11 +15,9 @@ const logger = require('./utils/logger');
 // Import routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
-const subscriptionRoutes = require('./routes/subscriptions');
-const paymentRoutes = require('./routes/payments');
 const fileRoutes = require('./routes/files');
-const webhookRoutes = require('./routes/webhooks');
-const testRoutes = require('./routes/test');
+const subscriptionRoutes = require('./routes/subscriptions');
+
 const adminRoutes = require('./routes/admin');
 
 const app = express();
@@ -32,21 +31,63 @@ connectDB();
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Too many requests from this IP, please try again later.'
+// Enhanced rate limiting
+const createLimiter = (windowMs, max, message) => rateLimit({
+  windowMs,
+  max,
+  message: { success: false, message },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      success: false,
+      message: 'Too many requests, please try again later.'
+    });
   }
 });
-app.use('/api/', limiter);
+
+// Different rate limits for different endpoints
+const generalLimiter = createLimiter(
+  parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  'Too many requests'
+);
+const authLimiter = createLimiter(15 * 60 * 1000, 10, 'Too many authentication attempts');
+const adminLimiter = createLimiter(15 * 60 * 1000, 50, 'Too many admin requests');
+
+app.use('/api/', generalLimiter);
+
+// Enhanced security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false
+}));
+
+// MongoDB injection prevention
+app.use(mongoSanitize());
 
 // CORS configuration
 const corsOptions = {
-  origin: true, // Allow all origins in development
+  origin: process.env.NODE_ENV === 'production'
+    ? [process.env.FRONTEND_URL, process.env.ADMIN_URL].filter(Boolean)
+    : true, // Allow all origins in development
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-session-id']
 };
 
 app.use(cors(corsOptions));
@@ -91,16 +132,12 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
-const apiVersion = process.env.API_VERSION || 'v1';
-app.use(`/api/${apiVersion}/auth`, authRoutes);
-app.use(`/api/${apiVersion}/users`, userRoutes);
-app.use(`/api/${apiVersion}/subscriptions`, subscriptionRoutes);
-app.use(`/api/${apiVersion}/payments`, paymentRoutes);
-app.use(`/api/${apiVersion}/files`, fileRoutes);
-app.use(`/api/${apiVersion}/webhooks`, webhookRoutes);
-app.use(`/api/${apiVersion}/test`, testRoutes);
-app.use(`/api/${apiVersion}/admin`, adminRoutes);
+// Mount routes with specific rate limiting
+app.use('/api/v1/auth', authLimiter, authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/files', fileRoutes);
+app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/admin', adminLimiter, adminRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -135,6 +172,7 @@ process.on('uncaughtException', (err) => {
 });
 
 module.exports = app;
+
 
 
 

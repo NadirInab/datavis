@@ -4,24 +4,45 @@ import jsPDF from 'jspdf';
 // Export chart as PNG
 export const exportChartAsPNG = async (elementId, filename = 'chart') => {
   try {
+    console.log('PNG Export: Starting for element', elementId);
+
+    if (!elementId) {
+      throw new Error('Chart element ID is required');
+    }
+
     const element = document.getElementById(elementId);
     if (!element) {
-      throw new Error('Chart element not found');
+      throw new Error(`Chart element not found: ${elementId}`);
+    }
+
+    console.log('PNG Export: Element found', element);
+
+    // Check if html2canvas is available
+    if (typeof html2canvas === 'undefined') {
+      throw new Error('html2canvas library not loaded');
     }
 
     const canvas = await html2canvas(element, {
       backgroundColor: '#ffffff',
       scale: 2, // Higher resolution
       useCORS: true,
-      allowTaint: true
+      allowTaint: true,
+      logging: false // Disable html2canvas logging
     });
+
+    console.log('PNG Export: Canvas created', canvas.width, 'x', canvas.height);
 
     // Create download link
     const link = document.createElement('a');
     link.download = `${filename}.png`;
     link.href = canvas.toDataURL('image/png');
-    link.click();
 
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    console.log('PNG Export: Download triggered');
     return true;
   } catch (error) {
     console.error('Error exporting chart as PNG:', error);
@@ -72,21 +93,28 @@ export const exportChartAsPDF = async (elementId, filename = 'chart') => {
 // Export data as CSV
 export const exportDataAsCSV = (data, filename = 'data') => {
   try {
-    if (!data || data.length === 0) {
+    console.log('CSV Export: Starting with data', data?.length, 'rows');
+
+    if (!data || !Array.isArray(data) || data.length === 0) {
       throw new Error('No data to export');
     }
 
     // Get headers from first object
     const headers = Object.keys(data[0]);
-    
+    console.log('CSV Export: Headers', headers);
+
     // Create CSV content
     const csvContent = [
       headers.join(','), // Header row
-      ...data.map(row => 
+      ...data.map(row =>
         headers.map(header => {
           const value = row[header];
+          // Handle null/undefined values
+          if (value === null || value === undefined) {
+            return '';
+          }
           // Escape commas and quotes in values
-          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+          if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
             return `"${value.replace(/"/g, '""')}"`;
           }
           return value;
@@ -94,14 +122,22 @@ export const exportDataAsCSV = (data, filename = 'data') => {
       )
     ].join('\n');
 
+    console.log('CSV Export: Content created, size:', csvContent.length);
+
     // Create and download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${filename}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
 
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Clean up object URL
+    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+
+    console.log('CSV Export: Download triggered');
     return true;
   } catch (error) {
     console.error('Error exporting data as CSV:', error);
@@ -112,18 +148,28 @@ export const exportDataAsCSV = (data, filename = 'data') => {
 // Export data as JSON
 export const exportDataAsJSON = (data, filename = 'data') => {
   try {
+    console.log('JSON Export: Starting with data', data?.length || 'unknown', 'items');
+
     if (!data) {
       throw new Error('No data to export');
     }
 
     const jsonContent = JSON.stringify(data, null, 2);
+    console.log('JSON Export: Content created, size:', jsonContent.length);
+
     const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${filename}.json`;
-    link.click();
-    URL.revokeObjectURL(link.href);
 
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Clean up object URL
+    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+
+    console.log('JSON Export: Download triggered');
     return true;
   } catch (error) {
     console.error('Error exporting data as JSON:', error);
@@ -230,3 +276,4 @@ export const generateExportSummary = (data, visualizations) => {
     }
   };
 };
+

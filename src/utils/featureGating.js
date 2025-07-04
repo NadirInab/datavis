@@ -85,18 +85,58 @@ export const FEATURES = {
   },
 
   // Export Features
-  BASIC_EXPORT: {
-    id: 'basic_export',
-    name: 'Basic Export',
-    description: 'Export charts as PNG images',
+  CHART_EXPORT_PNG: {
+    id: 'chart_export_png',
+    name: 'Export Chart as PNG',
+    description: 'Download charts as PNG images',
     category: 'Export',
     tier: 'free',
     enabled: true
   },
-  ADVANCED_EXPORT: {
-    id: 'advanced_export',
-    name: 'Advanced Export',
-    description: 'Export as PDF, SVG, and high-resolution formats',
+  CHART_EXPORT_JPG: {
+    id: 'chart_export_jpg',
+    name: 'Export Chart as JPG',
+    description: 'Download charts as JPG images',
+    category: 'Export',
+    tier: 'premium',
+    enabled: true
+  },
+  CHART_EXPORT_PDF: {
+    id: 'chart_export_pdf',
+    name: 'Export Chart as PDF',
+    description: 'Download charts as PDF documents',
+    category: 'Export',
+    tier: 'premium',
+    enabled: true
+  },
+  CHART_EXPORT_SVG: {
+    id: 'chart_export_svg',
+    name: 'Export Chart as SVG',
+    description: 'Download charts as scalable vector graphics',
+    category: 'Export',
+    tier: 'premium',
+    enabled: true
+  },
+  DATA_EXPORT_CSV: {
+    id: 'data_export_csv',
+    name: 'Export Data as CSV',
+    description: 'Download processed data as CSV files',
+    category: 'Export',
+    tier: 'free',
+    enabled: true
+  },
+  DATA_EXPORT_EXCEL: {
+    id: 'data_export_excel',
+    name: 'Export Data as Excel',
+    description: 'Download processed data as Excel files',
+    category: 'Export',
+    tier: 'premium',
+    enabled: true
+  },
+  DATA_EXPORT_JSON: {
+    id: 'data_export_json',
+    name: 'Export Data as JSON',
+    description: 'Download processed data as JSON files',
     category: 'Export',
     tier: 'premium',
     enabled: true
@@ -104,7 +144,7 @@ export const FEATURES = {
   BULK_EXPORT: {
     id: 'bulk_export',
     name: 'Bulk Export',
-    description: 'Export multiple charts at once',
+    description: 'Export multiple charts and data at once',
     category: 'Export',
     tier: 'premium',
     enabled: true
@@ -136,6 +176,66 @@ export const FEATURES = {
     enabled: true
   },
 
+  // Dashboard Features
+  DASHBOARD_ACCESS: {
+    id: 'dashboard_access',
+    name: 'Dashboard Access',
+    description: 'Access to main dashboard interface',
+    category: 'Dashboard',
+    tier: 'free',
+    enabled: true
+  },
+  DASHBOARD_CUSTOMIZATION: {
+    id: 'dashboard_customization',
+    name: 'Dashboard Customization',
+    description: 'Customize dashboard layout and widgets',
+    category: 'Dashboard',
+    tier: 'premium',
+    enabled: true
+  },
+  REAL_TIME_UPDATES: {
+    id: 'real_time_updates',
+    name: 'Real-time Updates',
+    description: 'Live data updates and notifications',
+    category: 'Dashboard',
+    tier: 'premium',
+    enabled: true
+  },
+
+  // File Management
+  FILE_UPLOAD: {
+    id: 'file_upload',
+    name: 'File Upload',
+    description: 'Upload and manage data files',
+    category: 'File Management',
+    tier: 'free',
+    enabled: true
+  },
+  FILE_SHARING: {
+    id: 'file_sharing',
+    name: 'File Sharing',
+    description: 'Share files with other users',
+    category: 'File Management',
+    tier: 'premium',
+    enabled: true
+  },
+  FILE_VERSIONING: {
+    id: 'file_versioning',
+    name: 'File Versioning',
+    description: 'Keep track of file versions and changes',
+    category: 'File Management',
+    tier: 'premium',
+    enabled: true
+  },
+  FILE_COLLABORATION: {
+    id: 'file_collaboration',
+    name: 'File Collaboration',
+    description: 'Collaborate on files with team members',
+    category: 'File Management',
+    tier: 'premium',
+    enabled: true
+  },
+
   // Storage & Limits
   BASIC_STORAGE: {
     id: 'basic_storage',
@@ -160,6 +260,84 @@ export const FEATURES = {
     category: 'Storage',
     tier: 'premium',
     enabled: true
+  },
+
+  // User Management
+  USER_PROFILES: {
+    id: 'user_profiles',
+    name: 'User Profiles',
+    description: 'Create and manage user profiles',
+    category: 'User Management',
+    tier: 'free',
+    enabled: true
+  },
+  TEAM_MANAGEMENT: {
+    id: 'team_management',
+    name: 'Team Management',
+    description: 'Manage team members and permissions',
+    category: 'User Management',
+    tier: 'premium',
+    enabled: true
+  },
+  ROLE_BASED_ACCESS: {
+    id: 'role_based_access',
+    name: 'Role-based Access Control',
+    description: 'Advanced user roles and permissions',
+    category: 'User Management',
+    tier: 'premium',
+    enabled: true
+  },
+
+  // API & Integration
+  API_ACCESS: {
+    id: 'api_access',
+    name: 'API Access',
+    description: 'Access to REST API endpoints',
+    category: 'API & Integration',
+    tier: 'premium',
+    enabled: true
+  },
+  WEBHOOK_SUPPORT: {
+    id: 'webhook_support',
+    name: 'Webhook Support',
+    description: 'Receive real-time data via webhooks',
+    category: 'API & Integration',
+    tier: 'premium',
+    enabled: true
+  },
+  THIRD_PARTY_INTEGRATIONS: {
+    id: 'third_party_integrations',
+    name: 'Third-party Integrations',
+    description: 'Connect with external services and tools',
+    category: 'API & Integration',
+    tier: 'premium',
+    enabled: true
+  },
+
+  // Support & Help
+  BASIC_SUPPORT: {
+    id: 'basic_support',
+    name: 'Basic Support',
+    description: 'Email support and documentation access',
+    category: 'Support',
+    tier: 'free',
+    enabled: true
+  },
+  PRIORITY_SUPPORT: {
+    id: 'priority_support',
+    name: 'Priority Support',
+    description: 'Priority email and chat support',
+    category: 'Support',
+    tier: 'premium',
+    enabled: true
+  },
+  PHONE_SUPPORT: {
+    id: 'phone_support',
+    name: 'Phone Support',
+    description: 'Direct phone support access',
+    category: 'Support',
+    tier: 'premium',
+    enabled: true
   }
 };
 
@@ -167,7 +345,10 @@ export const FEATURES = {
 export const SUBSCRIPTION_TIERS = {
   visitor: {
     name: 'Visitor',
-    features: ['csv_upload', 'basic_charts', 'data_preview'],
+    features: [
+      'csv_upload', 'basic_charts', 'data_preview', 'dashboard_access',
+      'file_upload', 'chart_export_png', 'data_export_csv', 'user_profiles', 'basic_support'
+    ],
     limits: {
       files: 3,
       storage: 5 * 1024 * 1024, // 5MB
@@ -176,7 +357,11 @@ export const SUBSCRIPTION_TIERS = {
   },
   free: {
     name: 'Free',
-    features: ['csv_upload', 'basic_charts', 'basic_export', 'data_preview', 'basic_storage'],
+    features: [
+      'csv_upload', 'basic_charts', 'data_preview', 'dashboard_access',
+      'file_upload', 'chart_export_png', 'data_export_csv', 'user_profiles',
+      'basic_storage', 'basic_support'
+    ],
     limits: {
       files: 5,
       storage: 10 * 1024 * 1024, // 10MB
@@ -186,11 +371,24 @@ export const SUBSCRIPTION_TIERS = {
   pro: {
     name: 'Pro',
     features: [
-      'csv_upload', 'tsv_upload', 'excel_upload', 'json_upload',
+      // File Formats
+      'csv_upload', 'tsv_upload', 'excel_upload', 'json_upload', 'xml_upload', 'txt_upload',
+      // Visualizations
       'basic_charts', 'advanced_charts', 'custom_styling',
-      'basic_export', 'advanced_export',
-      'data_preview', 'column_analysis',
-      'extended_storage'
+      // Export
+      'chart_export_png', 'chart_export_jpg', 'chart_export_pdf', 'data_export_csv', 'data_export_excel',
+      // Data Processing
+      'data_preview', 'column_analysis', 'data_cleaning',
+      // Dashboard
+      'dashboard_access', 'dashboard_customization',
+      // File Management
+      'file_upload', 'file_sharing', 'file_versioning',
+      // Storage
+      'extended_storage',
+      // User Management
+      'user_profiles', 'team_management',
+      // Support
+      'basic_support', 'priority_support'
     ],
     limits: {
       files: -1, // unlimited
@@ -333,7 +531,27 @@ export const setFeatureFlag = (featureId, enabled) => {
   localStorage.setItem('featureFlags', JSON.stringify(featureFlags));
 };
 
+export const resetFeatureFlags = () => {
+  featureFlags = {};
+  localStorage.removeItem('featureFlags');
+};
+
+export const resetToDefaults = () => {
+  resetFeatureFlags();
+  // Ensure critical features are enabled
+  const criticalFeatures = ['csv_upload', 'basic_charts', 'data_preview', 'dashboard_access'];
+  criticalFeatures.forEach(featureId => {
+    setFeatureFlag(featureId, true);
+  });
+};
+
 export const getFeatureFlag = (featureId) => {
+  // Ensure critical features are always enabled
+  const criticalFeatures = ['csv_upload', 'basic_charts', 'data_preview', 'dashboard_access'];
+  if (criticalFeatures.includes(featureId)) {
+    return true;
+  }
+
   return featureFlags[featureId] !== undefined ? featureFlags[featureId] : FEATURES[featureId]?.enabled;
 };
 
@@ -383,3 +601,15 @@ export const validateFileFormatAccess = (user, format) => {
   
   return { allowed: true };
 };
+
+// Debug helpers (available in browser console)
+if (typeof window !== 'undefined') {
+  window.debugFeatures = {
+    resetFeatureFlags,
+    resetToDefaults,
+    setFeatureFlag,
+    getFeatureFlag,
+    getAllFeatures,
+    currentFlags: () => featureFlags
+  };
+}

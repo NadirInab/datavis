@@ -10,7 +10,11 @@ const {
   updateUserStatus,
   updateUserRole,
   getSystemStatus,
-  getUsageAnalytics
+  getUsageAnalytics,
+  runMigrations,
+  getMigrationStatus,
+  getPerformanceMetrics,
+  getCollectionData
 } = require('../controllers/adminController');
 
 const { protect, authorize } = require('../middleware/auth');
@@ -22,8 +26,14 @@ router.use(authorize('admin', 'super_admin'));
 // Database management routes
 router.get('/db/status', getDatabaseStatus);
 router.get('/db/stats', getCollectionStats);
+router.get('/db/performance', getPerformanceMetrics);
+router.get('/db/data/:collection', getCollectionData);
 router.post('/db/seed', runSeeder);
 router.delete('/db/clear', clearCollection);
+
+// Migration routes
+router.get('/db/migrations', getMigrationStatus);
+router.post('/db/migrate', runMigrations);
 
 // User management routes
 router.get('/users', getAllUsers);

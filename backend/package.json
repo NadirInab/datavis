@@ -10,8 +10,11 @@
     "test:watch": "jest --watch",
     "test:firebase": "node scripts/test-firebase.js",
     "setup:firebase": "node scripts/setup-firebase.js",
-    "migrate": "node src/database/migrate.js up",
-    "migrate:down": "node src/database/migrate.js down",
+    "migrate": "node src/scripts/migrate.js",
+    "migrate:up": "node src/scripts/migrate.js up",
+    "migrate:down": "node src/scripts/migrate.js down",
+    "migrate:status": "node src/scripts/migrate.js status",
+    "migrate:create": "node src/scripts/migrate.js create",
     "seed": "node src/database/seed.js seed",
     "seed:clear": "node src/database/seed.js clear",
     "lint": "eslint src/",
@@ -27,16 +30,19 @@
   "author": "CSV Dashboard Team",
   "license": "MIT",
   "dependencies": {
+
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "csv-parser": "^3.0.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^7.1.5",
     "firebase-admin": "^12.0.0",
     "helmet": "^7.1.0",
     "ioredis": "^5.3.2",
     "joi": "^17.11.0",
+    "logger": "^0.0.1",
     "moment": "^2.29.4",
     "mongodb": "^6.17.0",
     "mongoose": "^8.0.3",
@@ -44,7 +50,7 @@
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.7",
     "redis": "^4.6.0",
-    "stripe": "^14.9.0",
+
     "uuid": "^9.0.1"
   },
   "devDependencies": {
