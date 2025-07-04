@@ -985,6 +985,40 @@ const getCollectionData = async (req, res) => {
   }
 };
 
+const fs = require('fs');
+const path = require('path');
+
+// List all Markdown files in the project root
+const getMarkdownFiles = async (req, res) => {
+  try {
+    const rootDir = path.resolve(__dirname, '../../../');
+    const files = fs.readdirSync(rootDir);
+    const mdFiles = files.filter(f => f.endsWith('.md'));
+    res.status(200).json({ success: true, files: mdFiles });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to list markdown files', error: error.message });
+  }
+};
+
+// Get the content of a specific Markdown file
+const getMarkdownFileContent = async (req, res) => {
+  try {
+    const { filename } = req.params;
+    if (!filename.endsWith('.md')) {
+      return res.status(400).json({ success: false, message: 'Invalid file type' });
+    }
+    const rootDir = path.resolve(__dirname, '../../../');
+    const filePath = path.join(rootDir, filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: 'File not found' });
+    }
+    const content = fs.readFileSync(filePath, 'utf-8');
+    res.status(200).json({ success: true, content });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to read markdown file', error: error.message });
+  }
+};
+
 module.exports = {
   getDatabaseStatus,
   getCollectionStats,
@@ -998,7 +1032,9 @@ module.exports = {
   runMigrations,
   getMigrationStatus,
   getPerformanceMetrics,
-  getCollectionData
+  getCollectionData,
+  getMarkdownFiles,
+  getMarkdownFileContent
 };
 
 

@@ -14,7 +14,9 @@ const {
   runMigrations,
   getMigrationStatus,
   getPerformanceMetrics,
-  getCollectionData
+  getCollectionData,
+  getMarkdownFiles,
+  getMarkdownFileContent
 } = require('../controllers/adminController');
 
 const { protect, authorize } = require('../middleware/auth');
@@ -43,6 +45,10 @@ router.put('/users/:id/role', updateUserRole);
 // System monitoring routes
 router.get('/system/status', getSystemStatus);
 router.get('/analytics', getUsageAnalytics);
+
+// Markdown file endpoints
+router.get('/md-files', getMarkdownFiles);
+router.get('/md-files/:filename', getMarkdownFileContent);
 
 // System health check
 router.get('/health', (req, res) => {
