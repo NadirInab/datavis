@@ -149,7 +149,7 @@ export const UploadProgress = ({ progress, fileName, status = 'uploading' }) => 
     },
   };
 
-  const config = statusConfig[status];
+  const config = statusConfig[status] ?? statusConfig['uploading'];
 
   return (
     <div className={`p-4 rounded-xl border ${config.bgColor} ${config.borderColor} animate-fade-in`}>

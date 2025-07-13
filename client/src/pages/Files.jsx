@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/FirebaseAuthContext';
 
 const Files = () => {
-  const { currentUser, isVisitor } = useAuth();
+  const auth = useAuth() || {};
+  const currentUser = auth.currentUser;
+  const isVisitor = typeof auth.isVisitor === 'function' ? auth.isVisitor : () => true;
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,21 +14,29 @@ const Files = () => {
 
   useEffect(() => {
     const loadFiles = () => {
-      if (!currentUser && !isVisitor()) return;
-
+      if (!currentUser && !isVisitor()) {
+        setFiles([]);
+        setLoading(false);
+        return;
+      }
       // Get files from localStorage - handle visitors and authenticated users
       const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
-      const filesData = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
+      let filesData = [];
+      try {
+        filesData = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
+        if (!Array.isArray(filesData)) filesData = [];
+      } catch {
+        filesData = [];
+      }
       setFiles(filesData);
       setLoading(false);
     };
-
     loadFiles();
   }, [currentUser, isVisitor]);
 
   const deleteFile = (fileId) => {
     if (window.confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
-      const updatedFiles = files.filter(file => file.id !== fileId);
+      const updatedFiles = files.filter(file => file?.id !== fileId);
       const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
       localStorage.setItem(`files_${userId}`, JSON.stringify(updatedFiles));
       setFiles(updatedFiles);
@@ -34,29 +44,31 @@ const Files = () => {
   };
 
   const handleVisualize = (fileId) => {
-    navigate(`/app/visualize/${fileId}`);
+    if (fileId) navigate(`/app/visualize/${fileId}`);
   };
 
-  const filteredFiles = files.filter(file => 
-    file.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredFiles = Array.isArray(files)
+    ? files.filter(file => (typeof file?.name === 'string') && file.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : [];
 
   const sortedFiles = [...filteredFiles].sort((a, b) => {
     switch (sortOption) {
       case 'name-asc':
-        return a.name.localeCompare(b.name);
+        return (a?.name || '').localeCompare(b?.name || '');
       case 'name-desc':
-        return b.name.localeCompare(a.name);
+        return (b?.name || '').localeCompare(a?.name || '');
       case 'date-asc':
-        return new Date(a.uploadedAt) - new Date(b.uploadedAt);
+        return new Date(a?.uploadedAt || 0) - new Date(b?.uploadedAt || 0);
       case 'date-desc':
       default:
-        return new Date(b.uploadedAt) - new Date(a.uploadedAt);
+        return new Date(b?.uploadedAt || 0) - new Date(a?.uploadedAt || 0);
     }
   });
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString(undefined, { 
       year: 'numeric', 
       month: 'short', 
@@ -67,6 +79,7 @@ const Files = () => {
   };
 
   const formatFileSize = (bytes) => {
+    if (typeof bytes !== 'number' || isNaN(bytes)) return 'N/A';
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     else return (bytes / 1048576).toFixed(1) + ' MB';
@@ -163,7 +176,7 @@ const Files = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {sortedFiles.map((file) => (
-                  <tr key={file.id} className="hover:bg-gray-50">
+                  <tr key={file?.id || file?._id || Math.random()} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
@@ -172,35 +185,37 @@ const Files = () => {
                           </svg>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 truncate max-w-xs">{file.name}</div>
+                          <div className="text-sm font-medium text-gray-900 truncate max-w-xs">{typeof file?.name === 'string' ? file.name : 'Untitled'}</div>
                           <div className="text-xs text-gray-500">CSV file</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatFileSize(file.size)}
+                      {formatFileSize(file?.size)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(file.uploadedAt)}
+                      {formatDate(file?.uploadedAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {file.rows} rows × {file.columns} columns
+                      {typeof file?.rows === 'number' ? file.rows : '?'} rows × {typeof file?.columns === 'number' ? file.columns : '?'} columns
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        {file.visualizations?.length || 0} charts
+                        {Array.isArray(file?.visualizations) ? file.visualizations.length : 0} charts
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
-                        onClick={() => handleVisualize(file.id)}
+                        onClick={() => handleVisualize(file?.id)}
                         className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        disabled={!file?.id}
                       >
                         Visualize
                       </button>
                       <button
-                        onClick={() => deleteFile(file.id)}
+                        onClick={() => deleteFile(file?.id)}
                         className="text-red-600 hover:text-red-900"
+                        disabled={!file?.id}
                       >
                         Delete
                       </button>

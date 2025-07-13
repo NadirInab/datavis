@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { auth, onAuthStateChanged, authHelpers, getFirebaseErrorMessage } from '../config/firebase';
 import { authAPI, apiUtils } from '../services/api';
 import { hasFeatureAccess, getUserLimits, trackFeatureUsage } from '../utils/featureGating';
@@ -23,6 +23,14 @@ export const AuthProvider = ({ children }) => {
   const [visitorSession, setVisitorSession] = useState(null);
   const [visitorStats, setVisitorStats] = useState(null);
   const [fingerprintReady, setFingerprintReady] = useState(false);
+
+  // Refs for optimization
+  const lastSyncRef = useRef(0);
+  const syncInProgressRef = useRef(false);
+  const lastSyncedUidRef = useRef(null);
+  const lastSyncedTokenRef = useRef(null);
+  const cooldownRef = useRef(0);
+  const debounceTimeoutRef = useRef(null);
 
   // Subscription plan limits (preserved from original)
   const subscriptionLimits = {
@@ -87,45 +95,37 @@ export const AuthProvider = ({ children }) => {
   // Initialize optimized visitor session for unauthenticated users
   const initializeVisitorSession = async () => {
     try {
-      // Initialize fingerprint tracking first
+      // Initialize fingerprint tracking and get stats
       const stats = await initializeFingerprintTracking();
-      
-      let sessionId = apiUtils.getSessionId();
-      if (!sessionId) {
-        sessionId = apiUtils.generateSessionId();
-      }
+      let sessionId = apiUtils.getSessionId() || apiUtils.generateSessionId();
 
-      // Try to get visitor info from backend
+      // Try to get visitor info from backend, fallback to stats
+      let visitorData = {};
       try {
         const response = await authAPI.getVisitorInfo();
-        setVisitorSession({
-          ...response.data,
-          visitorId: stats.visitorId,
-          fingerprintReady,
-          features: response.data.features || ['csv_upload', 'google_sheets_import', 'basic_charts', 'chart_export_png']
-        });
-      } catch (error) {
-        console.warn('Could not get visitor info from backend, using local tracking:', error);
-        
-        // Create enhanced local visitor session as fallback
-        setVisitorSession({
-          sessionId,
-          visitorId: stats.visitorId,
-          filesUploaded: stats.totalUploads,
-          fileLimit: stats.maxUploads,
-          remainingFiles: stats.remainingUploads,
-          isLimitReached: !stats.canUpload,
-          canUpload: stats.canUpload,
-          lastActivity: stats.lastActivity,
-          fingerprintReady,
-          features: ['csv_upload', 'google_sheets_import', 'basic_charts', 'chart_export_png'],
-          upgradeMessage: stats.canUpload ? null : 'Upload limit reached. Sign up for more uploads!'
-        });
+        visitorData = response.data || {};
+      } catch (err) {
+        console.warn('Could not get visitor info from backend, using local tracking:', err);
       }
+
+      // Merge logic: prefer backend, fallback to stats, always provide all fields
+      const merged = {
+        sessionId,
+        visitorId: visitorData.visitorId || stats.visitorId || 'fallback_visitor',
+        filesUploaded: typeof visitorData.filesUploaded === 'number' ? visitorData.filesUploaded : (typeof stats.totalUploads === 'number' ? stats.totalUploads : 0),
+        fileLimit: typeof visitorData.fileLimit === 'number' ? visitorData.fileLimit : (typeof stats.maxUploads === 'number' ? stats.maxUploads : 2),
+        remainingFiles: typeof visitorData.remainingFiles === 'number' ? visitorData.remainingFiles : (typeof stats.remainingUploads === 'number' ? stats.remainingUploads : 2),
+        isLimitReached: typeof visitorData.isLimitReached === 'boolean' ? visitorData.isLimitReached : (typeof stats.canUpload === 'boolean' ? !stats.canUpload : false),
+        canUpload: typeof visitorData.canUpload === 'boolean' ? visitorData.canUpload : (typeof stats.canUpload === 'boolean' ? stats.canUpload : true),
+        lastActivity: visitorData.lastActivity || stats.lastActivity || new Date().toISOString(),
+        fingerprintReady: typeof fingerprintReady === 'boolean' ? fingerprintReady : false,
+        features: Array.isArray(visitorData.features) ? visitorData.features : ['csv_upload', 'google_sheets_import', 'basic_charts', 'chart_export_png'],
+        upgradeMessage: typeof visitorData.upgradeMessage === 'string' ? visitorData.upgradeMessage : (stats.canUpload ? null : 'Upload limit reached. Sign up for more uploads!'),
+        error: visitorData.error || undefined
+      };
+      setVisitorSession(merged);
     } catch (error) {
       console.error('Failed to initialize visitor session:', error);
-      
-      // Ultimate fallback
       setVisitorSession({
         sessionId: apiUtils.getSessionId() || 'fallback_session',
         visitorId: 'fallback_visitor',
@@ -143,76 +143,143 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Verify Firebase token with backend and sync user data
-  const verifyAndSyncUser = async (firebaseUser) => {
+  // Debounced sync function
+  // Increased debounce delay to 2000ms (2 seconds)
+  const debouncedVerifyAndSyncUser = useCallback((firebaseUser, attempt = 1) => {
+    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    debounceTimeoutRef.current = setTimeout(() => {
+      verifyAndSyncUser(firebaseUser, attempt);
+    }, 2000);
+  }, []);
+
+  // Enhanced verifyAndSyncUser with all optimizations
+  const verifyAndSyncUser = async (firebaseUser, attempt = 1) => {
+    if (!firebaseUser) {
+      setCurrentUser(null);
+      apiUtils.clearStorage();
+      lastSyncedUidRef.current = null;
+      lastSyncedTokenRef.current = null;
+      return null;
+    }
+    // Cooldown: prevent sync if recently rate-limited
+    const now = Date.now();
+    if (cooldownRef.current && now < cooldownRef.current) {
+      setAuthError('Too many requests. Please wait and try again.');
+      return;
+    }
+    // Prevent redundant syncs: skip if in progress or too soon
+    // Increased minimum interval between syncs to 15000ms (15 seconds)
+    if (syncInProgressRef.current || now - lastSyncRef.current < 15000) {
+      if (attempt < 4) {
+        const delay = Math.pow(2, attempt) * 250;
+        setTimeout(() => verifyAndSyncUser(firebaseUser, attempt + 1), delay);
+      }
+      return;
+    }
+    // Only sync if UID or token changed
+    const idToken = await firebaseUser.getIdToken();
+    if (
+      lastSyncedUidRef.current === firebaseUser.uid &&
+      lastSyncedTokenRef.current === idToken
+    ) {
+      return;
+    }
+    syncInProgressRef.current = true;
     try {
       setLoading(true);
       setAuthError(null);
-
-      // Get Firebase ID token
-      const idToken = await firebaseUser.getIdToken();
-      
-      // Store token for API requests
       apiUtils.setAuthToken(idToken);
-
-      // Get visitor ID for backend sync
       let visitorId = null;
-      try {
-        visitorId = await fingerprintService.getVisitorId();
-      } catch (error) {
-        console.warn('Could not get visitor ID for user sync:', error);
-      }
-
-      // Verify token with backend and get/create user
+      try { visitorId = await fingerprintService.getVisitorId(); } catch {}
       const response = await authAPI.verifyToken(idToken, { visitorId });
-      
       if (response.success) {
         const userData = response.data.user;
-        
-        // Transform backend user data to match frontend expectations
         const transformedUser = {
           id: userData.firebaseUid,
           name: userData.name,
           email: userData.email,
           role: userData.role,
-          subscription: userData.subscription.tier,
-          filesCount: userData.fileUsage.totalFiles,
-          filesLimit: userData.subscriptionLimits.files,
-          storageUsed: userData.fileUsage.storageUsed,
-          storageLimit: userData.subscriptionLimits.storage,
+          subscription: userData.subscription?.tier || 'free',
+          filesCount: userData.fileUsage?.totalFiles ?? 0,
+          filesLimit: userData.subscriptionLimits?.files ?? 0,
+          storageUsed: userData.fileUsage?.storageUsed ?? 0,
+          storageLimit: userData.subscriptionLimits?.storage ?? 0,
           company: userData.company?.name || '',
           lastLogin: userData.lastLoginAt,
           photoURL: userData.photoURL,
           isEmailVerified: userData.isEmailVerified,
-          subscriptionLimits: userData.subscriptionLimits,
-          preferences: userData.preferences,
-          visitorId // Include visitor ID for tracking
+          subscriptionLimits: userData.subscriptionLimits || {},
+          preferences: userData.preferences || {},
+          visitorId
         };
-
         setCurrentUser(transformedUser);
         localStorage.setItem('user', JSON.stringify(transformedUser));
-        
-        // Clear visitor session since user is now authenticated
         setVisitorSession(null);
         setVisitorStats(null);
         apiUtils.setSessionId(null);
-        
+        lastSyncRef.current = Date.now();
+        lastSyncedUidRef.current = firebaseUser.uid;
+        lastSyncedTokenRef.current = idToken;
         return transformedUser;
       } else {
         throw new Error('Backend verification failed');
       }
     } catch (error) {
-      console.error('User verification failed:', error);
+      if (error?.message?.includes('Too many requests') && attempt < 4) {
+        const delay = Math.pow(2, attempt) * 250;
+        setTimeout(() => verifyAndSyncUser(firebaseUser, attempt + 1), delay);
+        return;
+      }
+      if (error?.message?.includes('Too many requests')) {
+        cooldownRef.current = Date.now() + 30000; // 30s cooldown
+      }
       setAuthError(error.message || 'Authentication verification failed');
-      
-      // Clear auth data on verification failure
       apiUtils.clearStorage();
       setCurrentUser(null);
-      
+      lastSyncedUidRef.current = null;
+      lastSyncedTokenRef.current = null;
       throw error;
     } finally {
+      syncInProgressRef.current = false;
       setLoading(false);
     }
+  };
+
+  // Listen for localStorage 'user' changes (multi-tab sync)
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'user') {
+        const storedUser = e.newValue ? JSON.parse(e.newValue) : null;
+        if (storedUser && storedUser.id !== currentUser?.id) {
+          setCurrentUser(storedUser);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [currentUser]);
+
+  // Firebase auth state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setFirebaseUser(firebaseUser);
+      if (firebaseUser) {
+        debouncedVerifyAndSyncUser(firebaseUser);
+      } else {
+        setCurrentUser(null);
+        apiUtils.clearStorage();
+        lastSyncedUidRef.current = null;
+        lastSyncedTokenRef.current = null;
+        await initializeVisitorSession();
+        setLoading(false);
+      }
+    });
+    return unsubscribe;
+  }, [debouncedVerifyAndSyncUser]);
+
+  // Expose a manual retry function for UI
+  const retryUserSync = () => {
+    if (firebaseUser) debouncedVerifyAndSyncUser(firebaseUser, 1);
   };
 
   // Sign up with email and password
@@ -493,33 +560,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Firebase auth state listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setFirebaseUser(firebaseUser);
-      
-      if (firebaseUser) {
-        // User is signed in, verify with backend
-        try {
-          await verifyAndSyncUser(firebaseUser);
-        } catch (error) {
-          console.error('Failed to sync user with backend:', error);
-          setLoading(false);
-        }
-      } else {
-        // User is signed out
-        setCurrentUser(null);
-        apiUtils.clearStorage();
-        
-        // Initialize visitor session
-        await initializeVisitorSession();
-        setLoading(false);
-      }
-    });
-
-    return unsubscribe;
-  }, []);
-
   // Initialize visitor tracking on mount
   useEffect(() => {
     if (!currentUser && !firebaseUser) {
@@ -583,7 +623,8 @@ export const AuthProvider = ({ children }) => {
     // Feature access methods
     hasFeature,
     trackFeature,
-    getFeatureLimits
+    getFeatureLimits,
+    retryUserSync
   };
 
   return (

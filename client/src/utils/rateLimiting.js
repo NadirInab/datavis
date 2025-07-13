@@ -212,17 +212,23 @@ export const checkUserUploadLimit = (user) => {
 };
 
 // Record file upload for guest
-export const recordGuestUpload = (file) => {
+export const recordGuestUpload = (file, fileRecord) => {
   const session = getGuestSession();
   const now = Date.now();
-  
+
+  // Add file to files_${sessionId} array
+  const filesKey = `files_${session.sessionId}`;
+  const existingFiles = JSON.parse(localStorage.getItem(filesKey) || '[]');
+  localStorage.setItem(filesKey, JSON.stringify([...existingFiles, fileRecord]));
+
+  // Add to uploadHistory for metrics/limits
   const uploadRecord = {
     timestamp: now,
     fileName: file.name,
     fileSize: file.size,
     fileType: file.type
   };
-  
+
   const updatedSession = updateGuestSession(session.sessionId, {
     filesUploaded: session.filesUploaded + 1,
     totalStorage: session.totalStorage + file.size,
@@ -230,7 +236,7 @@ export const recordGuestUpload = (file) => {
     firstUpload: session.firstUpload || now,
     lastUpload: now
   });
-  
+
   return updatedSession;
 };
 
@@ -238,17 +244,19 @@ export const recordGuestUpload = (file) => {
 export const getGuestMetrics = () => {
   const session = getGuestSession();
   const limits = UPLOAD_LIMITS.visitor;
-  
+  const filesKey = `files_${session.sessionId}`;
+  const files = JSON.parse(localStorage.getItem(filesKey) || '[]');
+
   return {
-    filesUploaded: session.filesUploaded,
+    filesUploaded: files.length,
     maxFiles: limits.maxFiles,
-    remainingFiles: Math.max(0, limits.maxFiles - session.filesUploaded),
-    totalStorage: session.totalStorage,
+    remainingFiles: Math.max(0, limits.maxFiles - files.length),
+    totalStorage: files.reduce((sum, f) => sum + (f.size || 0), 0),
     maxStorage: limits.maxStorageTotal,
-    remainingStorage: Math.max(0, limits.maxStorageTotal - session.totalStorage),
-    uploadHistory: session.uploadHistory,
-    firstUpload: session.firstUpload,
-    lastUpload: session.lastUpload,
+    remainingStorage: Math.max(0, limits.maxStorageTotal - files.reduce((sum, f) => sum + (f.size || 0), 0)),
+    uploadHistory: files,
+    firstUpload: files.length > 0 ? files[0].uploadedAt || files[0].timestamp : null,
+    lastUpload: files.length > 0 ? files[files.length - 1].uploadedAt || files[files.length - 1].timestamp : null,
     sessionId: session.sessionId
   };
 };

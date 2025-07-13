@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import { ChartCard, FileCard } from '../components/ui/Card';
 import { CardSkeleton, FileListSkeleton } from '../components/loading/SkeletonLoader';
 import VisitorBanner from '../components/visitor/VisitorBanner';
+import { getGuestMetrics, getUserMetrics } from '../utils/rateLimiting';
 
 // Define Icons if not imported from Button
 const Icons = {
@@ -28,7 +29,7 @@ const Icons = {
 };
 
 const Dashboard = () => {
-  const { currentUser, isAdmin, isRegularUser, isVisitor } = useAuth();
+  const { currentUser, isAdmin, isRegularUser, isVisitor } = useAuth() || {};
   const navigate = useNavigate();
   const [recentFiles, setRecentFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,75 +37,83 @@ const Dashboard = () => {
     totalFiles: 0,
     totalVisualizations: 0,
     lastUpload: null,
-    favoriteChartType: 'None'
+    favoriteChartType: 'None',
   });
 
   useEffect(() => {
-    // In a real app, this would fetch data from API
-    // For demo, we'll use localStorage
     const loadUserData = async () => {
       setLoading(true);
-
       try {
-        // Simulate loading delay for better UX
         await new Promise(resolve => setTimeout(resolve, 800));
-
-        if (!currentUser && !isVisitor()) {
-          return;
-        }
-
-        if (!currentUser || isVisitor()) {
-          // Set default visitor data
+        let metrics;
+        if (typeof isVisitor !== 'function' || typeof getGuestMetrics !== 'function' || typeof getUserMetrics !== 'function') {
           setStats({
             totalFiles: 0,
             totalVisualizations: 0,
             lastUpload: null,
-            favoriteChartType: 'None'
+            favoriteChartType: 'None',
           });
           setRecentFiles([]);
           return;
         }
-
-        // Get files from localStorage for authenticated users
-        const filesData = JSON.parse(localStorage.getItem(`files_${currentUser?.id || 'unknown'}`) || '[]');
-
-        // Calculate stats
-        const totalFiles = filesData.length;
-        const totalVisualizations = filesData.reduce((acc, file) => acc + (file.visualizations?.length || 0), 0);
-        const lastUpload = filesData.length > 0 ? new Date(Math.max(...filesData.map(f => new Date(f.uploadedAt)))) : null;
-
-        // Determine favorite chart type based on user's visualizations
-        const chartCounts = {};
-        filesData.forEach(file => {
-          (file.visualizations || []).forEach(viz => {
-            chartCounts[viz.type] = (chartCounts[viz.type] || 0) + 1;
+        if (!currentUser && !isVisitor()) {
+          setStats({
+            totalFiles: 0,
+            totalVisualizations: 0,
+            lastUpload: null,
+            favoriteChartType: 'None',
           });
-        });
-
-        const favoriteChartType = Object.keys(chartCounts).length > 0
-          ? Object.keys(chartCounts).reduce((a, b) => chartCounts[a] > chartCounts[b] ? a : b)
-          : 'None';
-
+          setRecentFiles([]);
+          return;
+        }
+        if (!currentUser || isVisitor()) {
+          metrics = getGuestMetrics();
+        } else {
+          metrics = getUserMetrics(currentUser);
+        }
+        // For admin: placeholder for global metrics (future-proof)
+        // if (isAdmin()) { metrics = getAdminMetrics() || getUserMetrics(currentUser); }
         setStats({
-          totalFiles,
-          totalVisualizations,
-          lastUpload,
-          favoriteChartType
+          totalFiles: Number(metrics?.filesUploaded) || 0,
+          totalVisualizations: Array.isArray(metrics?.uploadHistory)
+            ? metrics.uploadHistory.reduce((acc, file) => acc + (Array.isArray(file?.visualizations) ? file.visualizations.length : 0), 0)
+            : 0,
+          lastUpload: metrics?.lastUpload ? new Date(metrics.lastUpload) : null,
+          favoriteChartType: (() => {
+            const chartCounts = {};
+            if (Array.isArray(metrics?.uploadHistory)) {
+              metrics.uploadHistory.forEach(file => {
+                (Array.isArray(file?.visualizations) ? file.visualizations : []).forEach(viz => {
+                  if (viz?.type) {
+                    chartCounts[viz.type] = (chartCounts[viz.type] || 0) + 1;
+                  }
+                });
+              });
+            }
+            return Object.keys(chartCounts).length > 0
+              ? Object.keys(chartCounts).reduce((a, b) => chartCounts[a] > chartCounts[b] ? a : b)
+              : 'None';
+          })(),
         });
-
-        // Get recent files (last 5)
-        const recent = [...filesData]
-          .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
-          .slice(0, 5);
-
-        setRecentFiles(recent);
+        setRecentFiles(
+          Array.isArray(metrics?.uploadHistory)
+            ? [...metrics.uploadHistory]
+                .filter(f => f && (f.id || f._id))
+                .sort((a, b) => (b.uploadedAt || b.timestamp || 0) - (a.uploadedAt || a.timestamp || 0))
+                .slice(0, 5)
+            : []
+        );
       } finally {
-        // Always set loading to false, regardless of success or error
         setLoading(false);
       }
     };
-
     loadUserData();
+    // Listen for guest-files-updated event
+    const handleGuestFilesUpdated = () => loadUserData();
+    window.addEventListener('guest-files-updated', handleGuestFilesUpdated);
+    return () => {
+      window.removeEventListener('guest-files-updated', handleGuestFilesUpdated);
+    };
   }, [currentUser, isVisitor]);
 
   if (loading) {
@@ -129,16 +138,16 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-fade-in">
+    <div className="space-y-6 sm:space-y-8 animate-fade-in px-2 sm:px-0">
       {/* Visitor Banner */}
       <VisitorBanner />
 
       {/* Welcome Section - Optimized for Full Width */}
-      <div className="bg-gradient-to-r from-[#5A827E]/5 to-[#84AE92]/5 rounded-2xl p-6 sm:p-8">
+      <div className="bg-gradient-to-r from-[#5A827E]/5 to-[#84AE92]/5 rounded-2xl p-4 sm:p-8 mb-2 sm:mb-0">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
           <div className="flex-1">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#5A827E] mb-3">
-              Welcome back, {currentUser?.name?.split(' ')[0] || 'User'}!
+              Welcome back, {typeof currentUser?.name === 'string' && currentUser.name.split(' ')[0] ? currentUser.name.split(' ')[0] : 'User'}!
             </h1>
             <p className="text-base sm:text-lg text-[#5A827E]/70 max-w-2xl">
               Here's what's happening with your data today. Manage your CSV files, create visualizations, and gain insights from your data.
@@ -172,7 +181,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Cards - Optimized for Full Width */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4 mt-2">
         <StatsCard
           title="Total Files"
           value={stats.totalFiles.toString()}
@@ -212,7 +221,7 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Files - Full Width Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 xl:gap-8">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3 xl:gap-8 mt-2">
         {/* Recent Files Section */}
         <div className="xl:col-span-2">
           <ChartCard
@@ -231,13 +240,13 @@ const Dashboard = () => {
               </Button>
             }
           >
-            {recentFiles.length > 0 ? (
+            {Array.isArray(recentFiles) && recentFiles.length > 0 ? (
               <div className="space-y-3">
                 {recentFiles.map((file) => (
                   <FileCard
-                    key={file.id}
+                    key={file?.id || file?._id || Math.random()}
                     file={file}
-                    onView={() => navigate(`/app/visualize/${file.id}`)}
+                    onView={() => file?.id && navigate(`/app/visualize/${file.id}`)}
                     className="hover:shadow-md transition-shadow duration-200"
                   />
                 ))}
@@ -267,9 +276,9 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions Sidebar */}
-        <div className="xl:col-span-1 space-y-6">
+        <div className="xl:col-span-1 space-y-6 w-full xl:w-auto">
           {/* Quick Stats */}
-          <div className="bg-white rounded-2xl p-6 border border-[#84AE92]/20 shadow-sm">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#84AE92]/20 shadow-sm w-full">
             <h3 className="text-lg font-semibold text-[#5A827E] mb-4">Quick Overview</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
@@ -288,7 +297,7 @@ const Dashboard = () => {
           </div>
 
           {/* Quick Actions */}
-          <div className="bg-white rounded-2xl p-6 border border-[#84AE92]/20 shadow-sm">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#84AE92]/20 shadow-sm w-full">
             <h3 className="text-lg font-semibold text-[#5A827E] mb-4">Quick Actions</h3>
             <div className="space-y-3">
               <Button
@@ -331,8 +340,8 @@ const Dashboard = () => {
           </div>
 
           {/* User Info Card */}
-          {!isVisitor() && (
-            <div className="bg-gradient-to-br from-[#5A827E]/5 to-[#84AE92]/5 rounded-2xl p-6 border border-[#84AE92]/20">
+          {typeof isVisitor === 'function' && !isVisitor() && (
+            <div className="bg-gradient-to-br from-[#5A827E]/5 to-[#84AE92]/5 rounded-2xl p-4 sm:p-6 border border-[#84AE92]/20 w-full">
               <h3 className="text-lg font-semibold text-[#5A827E] mb-3">Account Info</h3>
               <div className="space-y-2">
                 <p className="text-sm text-[#5A827E]/70">

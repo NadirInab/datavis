@@ -8,18 +8,17 @@ import { UploadProgress, LoadingOverlay } from '../components/loading/LoadingSpi
 import { parseFile, parseGoogleSheets, SUPPORTED_FORMATS, detectFileFormat } from '../utils/fileParser';
 import { validateFileFormatAccess, trackFeatureUsage } from '../utils/featureGating';
 import UpgradePrompt, { useUpgradePrompt } from '../components/premium/UpgradePrompt';
-import { 
-  validateFileUpload, 
-  validateFileContent, 
-  recordGuestUpload, 
+import {
+  validateFileUpload,
+  validateFileContent,
+  recordGuestUpload,
   checkGuestUploadLimit,
   checkUserUploadLimit,
   getGuestMetrics,
-  getUserMetricsimport React, { useEffect, useState } from 'react';
-import Card from '../ui/Card';
-import Button, { Icons } from '../ui/Button';
-import { getUserMetrics } from '../../utils/rateLimiting';
-import { trackFeatureUsage } from '../../utils/featureGating';
+  getUserMetrics
+} from '../utils/rateLimiting';
+import SignupPrompt from '../components/guest/SignupPrompt';
+import GuestMetrics from '../components/guest/GuestMetrics';
 
 /**
  * UserDetails
@@ -182,11 +181,6 @@ const UserDetails = ({ user, onEdit, onUpgrade }) => {
     </Card>
   );
 };
-
-export default UserDetails;
-} from '../utils/rateLimiting';
-import SignupPrompt from '../components/guest/SignupPrompt';
-import GuestMetrics from '../components/guest/GuestMetrics';
 
 const FileUpload = () => {
   const { currentUser, hasReachedFileLimit, incrementFileCount, isVisitor } = useAuth();
@@ -600,7 +594,8 @@ const FileUpload = () => {
 
       // Record upload for metrics
       if (isVisitor() || !currentUser) {
-        recordGuestUpload(file);
+        recordGuestUpload(file, fileRecord);
+        window.dispatchEvent(new Event('guest-files-updated'));
       }
 
       incrementFileCount();

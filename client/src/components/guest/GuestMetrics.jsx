@@ -16,27 +16,32 @@ const GuestMetrics = ({
     const loadMetrics = () => {
       if (customMetrics) {
         // Use provided custom metrics (from fingerprint tracking)
-        setMetrics(customMetrics);
+        const totalStorage = (customMetrics.uploadHistory || []).reduce((sum, u) => sum + (u.fileSize || 0), 0);
+        setMetrics({
+          maxFiles: 2,
+          totalStorage,
+          maxStorage: 2 * 1024 * 1024,
+          canUpload: true,
+          ...customMetrics
+        });
       } else if (isVisitor() || !currentUser) {
-        if (visitorStats) {
-          // Use visitor stats from fingerprint tracking
-          setMetrics({
-            filesUploaded: visitorStats.totalUploads,
-            maxFiles: visitorStats.maxUploads,
-            remainingFiles: visitorStats.remainingUploads,
-            totalStorage: 0, // Not tracked in visitor stats yet
-            maxStorage: 2 * 1024 * 1024, // 2MB for guests
-            firstUpload: visitorStats.firstVisit,
-            lastUpload: visitorStats.lastActivity,
-            sessionId: visitorStats.visitorId,
-            uploadHistory: visitorStats.uploads || [],
-            fingerprintReady,
-            visitorId
-          });
-        } else {
-          // Fallback to legacy guest metrics
-          setMetrics(getGuestMetrics());
-        }
+        // Use localStorage files for visitor metrics to match Dashboard
+        const visitorId = localStorage.getItem('sessionId') || 'visitor-session';
+        const filesData = JSON.parse(localStorage.getItem(`files_${visitorId}`) || '[]');
+        const totalStorage = filesData.reduce((sum, f) => sum + (f.size || 0), 0);
+        setMetrics({
+          filesUploaded: filesData.length,
+          maxFiles: 2,
+          remainingFiles: Math.max(0, 2 - filesData.length),
+          totalStorage,
+          maxStorage: 2 * 1024 * 1024,
+          canUpload: filesData.length < 2,
+          firstUpload: filesData.length > 0 ? filesData[0].uploadedAt : null,
+          lastUpload: filesData.length > 0 ? filesData[filesData.length - 1].uploadedAt : null,
+          uploadHistory: filesData,
+          fingerprintReady,
+          visitorId
+        });
       } else {
         setMetrics(getUserMetrics(currentUser));
       }
