@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const { SUBSCRIPTION_TIERS, USER_ROLES } = require('../utils/constants');
 
 const usageTrackingSchema = new mongoose.Schema({
-  // User identification
   userUid: {
     type: String,
     required: true,
