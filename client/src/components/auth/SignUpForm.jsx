@@ -60,24 +60,31 @@ const SignUpForm = ({ onSuccess, redirectTo = '/app' }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    // Prevent multiple submissions
+    if (loading) {
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
-    
+
     setLoading(true);
     setAuthError(null);
 
     try {
       await register(formData.name, formData.email, formData.password);
-      
+
       if (onSuccess) {
         onSuccess();
       } else {
         window.location.href = redirectTo;
       }
     } catch (error) {
-      console.error('Sign up failed:', error);
+      if (import.meta.env.DEV) {
+        console.error('Sign up failed:', error);
+      }
     } finally {
       setLoading(false);
     }

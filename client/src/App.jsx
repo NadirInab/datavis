@@ -4,6 +4,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider } from './context/FirebaseAuthContext';
 // Change this import to match your actual routes file
 import AppRoutes from './routes/index';
+import LoadingDiagnostic from './components/debug/LoadingDiagnostic';
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <AppRoutes />
+          <LoadingDiagnostic />
         </BrowserRouter>
       </AuthProvider>
     </HelmetProvider>

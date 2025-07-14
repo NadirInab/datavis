@@ -11,6 +11,7 @@ import FeatureManagement from '../../components/admin/FeatureManagement';
 import UsageAnalytics from '../../components/admin/UsageAnalytics';
 import RoleBasedTester from '../../components/testing/RoleBasedTester';
 import ComprehensiveAudit from '../../components/testing/ComprehensiveAudit';
+import ComprehensiveAuthAudit from '../../components/testing/ComprehensiveAuthAudit';
 
 const AdminDashboard = () => {
   const { currentUser, isAdmin } = useAuth();
@@ -34,6 +35,7 @@ const AdminDashboard = () => {
   }
 
   const tabs = [
+    { id: 'auth-audit', name: 'Auth Audit', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
     { id: 'audit', name: 'Full Audit', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: 'test', name: 'API Test', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: 'role-test', name: 'Role Testing', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547A1.934 1.934 0 004 17.5c0 .775.301 1.52.828 2.047l.724.724a2 2 0 002.828 0l4.096-4.096a2 2 0 012.828 0l4.096 4.096a2 2 0 002.828 0l.724-.724A2.934 2.934 0 0020 17.5a1.934 1.934 0 00-.572-1.072z' },
@@ -48,6 +50,8 @@ const AdminDashboard = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'auth-audit':
+        return <ComprehensiveAuthAudit />;
       case 'audit':
         return <ComprehensiveAudit />;
       case 'test':
@@ -69,7 +73,7 @@ const AdminDashboard = () => {
       case 'database':
         return <DatabaseManagerTest />;
       default:
-        return <ComprehensiveAudit />;
+        return <ComprehensiveAuthAudit />;
     }
   };
 

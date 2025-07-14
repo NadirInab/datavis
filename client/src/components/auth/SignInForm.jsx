@@ -28,38 +28,53 @@ const SignInForm = ({ onSuccess, redirectTo = '/app' }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent multiple submissions
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
     setAuthError(null);
 
     try {
       await login(formData.email, formData.password);
-      
+
       if (onSuccess) {
         onSuccess();
       } else {
         window.location.href = redirectTo;
       }
     } catch (error) {
-      console.error('Sign in failed:', error);
+      if (import.meta.env.DEV) {
+        console.error('Sign in failed:', error);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    // Prevent multiple submissions
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
     setAuthError(null);
 
     try {
       await signInWithGoogle();
-      
+
       if (onSuccess) {
         onSuccess();
       } else {
         window.location.href = redirectTo;
       }
     } catch (error) {
-      console.error('Google sign in failed:', error);
+      if (import.meta.env.DEV) {
+        console.error('Google sign in failed:', error);
+      }
     } finally {
       setLoading(false);
     }

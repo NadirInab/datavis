@@ -24,13 +24,18 @@ export const AuthProvider = ({ children }) => {
   const [visitorStats, setVisitorStats] = useState(null);
   const [fingerprintReady, setFingerprintReady] = useState(false);
 
-  // Refs for optimization
+  // Refs for optimization and caching
   const lastSyncRef = useRef(0);
   const syncInProgressRef = useRef(false);
   const lastSyncedUidRef = useRef(null);
   const lastSyncedTokenRef = useRef(null);
   const cooldownRef = useRef(0);
   const debounceTimeoutRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const visitorSessionCacheRef = useRef(null);
+  const visitorSessionTimestampRef = useRef(0);
+  const authDataCacheRef = useRef(null);
+  const authDataTimestampRef = useRef(0);
 
   // Subscription plan limits (preserved from original)
   const subscriptionLimits = {
@@ -54,7 +59,7 @@ export const AuthProvider = ({ children }) => {
   // Initialize fingerprint and visitor tracking
   const initializeFingerprintTracking = async () => {
     try {
-      console.log('Initializing fingerprint tracking...');
+      // Initialize fingerprint tracking
       
       // Initialize fingerprint service
       await fingerprintService.initialize();
@@ -67,11 +72,14 @@ export const AuthProvider = ({ children }) => {
       const stats = await visitorTrackingService.getVisitorStats();
       setVisitorStats(stats);
       
-      console.log('Fingerprint tracking initialized:', stats);
+      // Fingerprint tracking initialized successfully
       
       return stats;
     } catch (error) {
-      console.error('Failed to initialize fingerprint tracking:', error);
+      // Log error in development only
+      if (import.meta.env.DEV) {
+        console.error('Failed to initialize fingerprint tracking:', error);
+      }
       setFingerprintReady(false);
       
       // Fallback visitor stats
@@ -92,20 +100,43 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Initialize optimized visitor session for unauthenticated users
+  // Initialize optimized visitor session for unauthenticated users with caching
   const initializeVisitorSession = async () => {
+    const now = Date.now();
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+    // Check if we have cached data that's still valid
+    if (visitorSessionCacheRef.current &&
+        now - visitorSessionTimestampRef.current < CACHE_DURATION) {
+      setVisitorSession(visitorSessionCacheRef.current);
+      return;
+    }
+
     try {
-      // Initialize fingerprint tracking and get stats
-      const stats = await initializeFingerprintTracking();
+      // Initialize fingerprint tracking and get stats with timeout
+      const stats = await Promise.race([
+        initializeFingerprintTracking(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Fingerprint initialization timeout')), 5000)
+        )
+      ]);
       let sessionId = apiUtils.getSessionId() || apiUtils.generateSessionId();
 
-      // Try to get visitor info from backend, fallback to stats
+      // Try to get visitor info from backend with timeout, fallback to stats
       let visitorData = {};
       try {
-        const response = await authAPI.getVisitorInfo();
+        const response = await Promise.race([
+          authAPI.getVisitorInfo(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Visitor API timeout')), 3000)
+          )
+        ]);
         visitorData = response.data || {};
       } catch (err) {
-        console.warn('Could not get visitor info from backend, using local tracking:', err);
+        // Could not get visitor info from backend, using local tracking
+        if (import.meta.env.DEV) {
+          console.warn('Visitor API call failed or timed out:', err.message);
+        }
       }
 
       // Merge logic: prefer backend, fallback to stats, always provide all fields
@@ -113,8 +144,8 @@ export const AuthProvider = ({ children }) => {
         sessionId,
         visitorId: visitorData.visitorId || stats.visitorId || 'fallback_visitor',
         filesUploaded: typeof visitorData.filesUploaded === 'number' ? visitorData.filesUploaded : (typeof stats.totalUploads === 'number' ? stats.totalUploads : 0),
-        fileLimit: typeof visitorData.fileLimit === 'number' ? visitorData.fileLimit : (typeof stats.maxUploads === 'number' ? stats.maxUploads : 2),
-        remainingFiles: typeof visitorData.remainingFiles === 'number' ? visitorData.remainingFiles : (typeof stats.remainingUploads === 'number' ? stats.remainingUploads : 2),
+        fileLimit: typeof visitorData.fileLimit === 'number' ? visitorData.fileLimit : (typeof stats.maxUploads === 'number' ? stats.maxUploads : 3),
+        remainingFiles: typeof visitorData.remainingFiles === 'number' ? visitorData.remainingFiles : (typeof stats.remainingUploads === 'number' ? stats.remainingUploads : 3),
         isLimitReached: typeof visitorData.isLimitReached === 'boolean' ? visitorData.isLimitReached : (typeof stats.canUpload === 'boolean' ? !stats.canUpload : false),
         canUpload: typeof visitorData.canUpload === 'boolean' ? visitorData.canUpload : (typeof stats.canUpload === 'boolean' ? stats.canUpload : true),
         lastActivity: visitorData.lastActivity || stats.lastActivity || new Date().toISOString(),
@@ -123,15 +154,23 @@ export const AuthProvider = ({ children }) => {
         upgradeMessage: typeof visitorData.upgradeMessage === 'string' ? visitorData.upgradeMessage : (stats.canUpload ? null : 'Upload limit reached. Sign up for more uploads!'),
         error: visitorData.error || undefined
       };
+
+      // Cache the session data
+      visitorSessionCacheRef.current = merged;
+      visitorSessionTimestampRef.current = now;
+
       setVisitorSession(merged);
     } catch (error) {
-      console.error('Failed to initialize visitor session:', error);
-      setVisitorSession({
+      if (import.meta.env.DEV) {
+        console.error('Failed to initialize visitor session:', error);
+      }
+
+      const fallbackSession = {
         sessionId: apiUtils.getSessionId() || 'fallback_session',
         visitorId: 'fallback_visitor',
         filesUploaded: 0,
-        fileLimit: 2,
-        remainingFiles: 2,
+        fileLimit: 3,
+        remainingFiles: 3,
         isLimitReached: false,
         canUpload: true,
         lastActivity: new Date().toISOString(),
@@ -139,18 +178,66 @@ export const AuthProvider = ({ children }) => {
         features: ['csv_upload'],
         upgradeMessage: null,
         error: error.message
-      });
+      };
+
+      // Cache the fallback session too
+      visitorSessionCacheRef.current = fallbackSession;
+      visitorSessionTimestampRef.current = now;
+
+      setVisitorSession(fallbackSession);
     }
   };
 
-  // Debounced sync function
-  // Increased debounce delay to 2000ms (2 seconds)
+  // Migrate visitor data to user account
+  const migrateVisitorDataToUser = async (user) => {
+    try {
+      // Get visitor data before clearing
+      const visitorData = localStorage.getItem('visitor_upload_data');
+      const visitorId = await fingerprintService.getVisitorId();
+
+      if (visitorData && visitorId) {
+        const parsedData = JSON.parse(visitorData);
+
+        // Send visitor data to backend for migration
+        try {
+          await authAPI.migrateVisitorData({
+            visitorId,
+            visitorData: parsedData,
+            userId: user.id
+          });
+
+          // Visitor data migrated successfully
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn('Failed to migrate visitor data to backend:', error);
+          }
+        }
+
+        // Clear visitor data from localStorage
+        localStorage.removeItem('visitor_upload_data');
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error during visitor data migration:', error);
+      }
+    }
+  };
+
+  // Debounced sync function with request deduplication
+  // Reduced debounce delay to 2000ms (2 seconds) for better user experience
   const debouncedVerifyAndSyncUser = useCallback((firebaseUser, attempt = 1) => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+
+    // Additional check: don't debounce if we already have a valid user with same UID
+    if (currentUser && firebaseUser && currentUser.id === firebaseUser.uid) {
+      setLoading(false); // Ensure loading is false for existing users
+      return;
+    }
+
     debounceTimeoutRef.current = setTimeout(() => {
       verifyAndSyncUser(firebaseUser, attempt);
     }, 2000);
-  }, []);
+  }, [currentUser]);
 
   // Enhanced verifyAndSyncUser with all optimizations
   const verifyAndSyncUser = async (firebaseUser, attempt = 1) => {
@@ -168,22 +255,31 @@ export const AuthProvider = ({ children }) => {
       return;
     }
     // Prevent redundant syncs: skip if in progress or too soon
-    // Increased minimum interval between syncs to 15000ms (15 seconds)
-    if (syncInProgressRef.current || now - lastSyncRef.current < 15000) {
-      if (attempt < 4) {
-        const delay = Math.pow(2, attempt) * 250;
-        setTimeout(() => verifyAndSyncUser(firebaseUser, attempt + 1), delay);
+    // Increased minimum interval between syncs to 120000ms (2 minutes)
+    if (syncInProgressRef.current || now - lastSyncRef.current < 120000) {
+      if (import.meta.env.DEV) {
+        console.log('Skipping sync - too soon or in progress');
       }
       return;
     }
-    // Only sync if UID or token changed
+    // Only sync if UID or token changed, or if we don't have a current user
     const idToken = await firebaseUser.getIdToken();
     if (
+      currentUser &&
       lastSyncedUidRef.current === firebaseUser.uid &&
       lastSyncedTokenRef.current === idToken
     ) {
+      if (import.meta.env.DEV) {
+        console.log('Skipping sync - no changes detected');
+      }
       return;
     }
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     syncInProgressRef.current = true;
     try {
       setLoading(true);
@@ -191,7 +287,9 @@ export const AuthProvider = ({ children }) => {
       apiUtils.setAuthToken(idToken);
       let visitorId = null;
       try { visitorId = await fingerprintService.getVisitorId(); } catch {}
-      const response = await authAPI.verifyToken(idToken, { visitorId });
+
+      // Add abort signal to the request
+      const response = await authAPI.verifyToken(idToken, { visitorId, signal: abortControllerRef.current.signal });
       if (response.success) {
         const userData = response.data.user;
         const transformedUser = {
@@ -214,31 +312,48 @@ export const AuthProvider = ({ children }) => {
         };
         setCurrentUser(transformedUser);
         localStorage.setItem('user', JSON.stringify(transformedUser));
+
+        // Cache the auth data
+        authDataCacheRef.current = transformedUser;
+        authDataTimestampRef.current = Date.now();
+
+        // Migrate visitor data to user account
+        await migrateVisitorDataToUser(transformedUser);
+
         setVisitorSession(null);
         setVisitorStats(null);
         apiUtils.setSessionId(null);
         lastSyncRef.current = Date.now();
         lastSyncedUidRef.current = firebaseUser.uid;
         lastSyncedTokenRef.current = idToken;
+
+        // Ensure loading is set to false after successful sync
+        setLoading(false);
         return transformedUser;
       } else {
         throw new Error('Backend verification failed');
       }
     } catch (error) {
-      if (error?.message?.includes('Too many requests') && attempt < 4) {
-        const delay = Math.pow(2, attempt) * 250;
-        setTimeout(() => verifyAndSyncUser(firebaseUser, attempt + 1), delay);
+      // Don't handle aborted requests
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
         return;
       }
+
       if (error?.message?.includes('Too many requests')) {
-        cooldownRef.current = Date.now() + 30000; // 30s cooldown
+        cooldownRef.current = Date.now() + 60000; // 60s cooldown for rate limits
+        setAuthError('Too many requests. Please wait a moment and try again.');
+        return;
       }
+
+      if (import.meta.env.DEV) {
+        console.error('Authentication sync failed:', error);
+      }
+
       setAuthError(error.message || 'Authentication verification failed');
       apiUtils.clearStorage();
       setCurrentUser(null);
       lastSyncedUidRef.current = null;
       lastSyncedTokenRef.current = null;
-      throw error;
     } finally {
       syncInProgressRef.current = false;
       setLoading(false);
@@ -264,13 +379,24 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setFirebaseUser(firebaseUser);
       if (firebaseUser) {
+        // Set loading to true immediately for authenticated users
+        setLoading(true);
         debouncedVerifyAndSyncUser(firebaseUser);
       } else {
+        // For visitors, initialize session and stop loading immediately
         setCurrentUser(null);
         apiUtils.clearStorage();
         lastSyncedUidRef.current = null;
         lastSyncedTokenRef.current = null;
-        await initializeVisitorSession();
+
+        // Initialize visitor session asynchronously but don't wait for it
+        initializeVisitorSession().catch(error => {
+          if (import.meta.env.DEV) {
+            console.error('Visitor session initialization failed:', error);
+          }
+        });
+
+        // Stop loading immediately for visitors
         setLoading(false);
       }
     });
@@ -349,7 +475,7 @@ export const AuthProvider = ({ children }) => {
       try {
         await authAPI.logout();
       } catch (error) {
-        console.warn('Backend logout failed:', error);
+        // Backend logout failed, continuing with local logout
       }
 
       // Sign out from Firebase
@@ -449,7 +575,9 @@ export const AuthProvider = ({ children }) => {
           });
         }
       } catch (error) {
-        console.error('Failed to update visitor stats:', error);
+        if (import.meta.env.DEV) {
+          console.error('Failed to update visitor stats:', error);
+        }
       }
     }
   };
@@ -467,7 +595,9 @@ export const AuthProvider = ({ children }) => {
       }
       return { success: true, message: 'User upload, no visitor tracking needed' };
     } catch (error) {
-      console.error('Failed to record visitor upload:', error);
+      if (import.meta.env.DEV) {
+        console.error('Failed to record visitor upload:', error);
+      }
       throw error;
     }
   };
@@ -543,7 +673,7 @@ export const AuthProvider = ({ children }) => {
     if (!currentUser) {
       if (visitorSession) return visitorSession.remainingFiles;
       if (visitorStats) return visitorStats.remainingUploads;
-      return 2;
+      return 3;
     }
     
     if (currentUser.filesLimit === -1) return 'unlimited';
@@ -555,7 +685,9 @@ export const AuthProvider = ({ children }) => {
     try {
       return await fingerprintService.getVisitorId();
     } catch (error) {
-      console.error('Failed to get visitor ID:', error);
+      if (import.meta.env.DEV) {
+        console.error('Failed to get visitor ID:', error);
+      }
       return null;
     }
   };
@@ -567,6 +699,20 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Fallback timeout to ensure loading never gets stuck
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading) {
+        if (import.meta.env.DEV) {
+          console.warn('Loading timeout reached, forcing loading to false');
+        }
+        setLoading(false);
+      }
+    }, 15000); // 15 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [loading]);
+
   // Check for existing user on mount (fallback)
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -574,7 +720,9 @@ export const AuthProvider = ({ children }) => {
       try {
         setCurrentUser(JSON.parse(storedUser));
       } catch (error) {
-        console.error('Failed to parse stored user:', error);
+        if (import.meta.env.DEV) {
+          console.error('Failed to parse stored user:', error);
+        }
         localStorage.removeItem('user');
       }
     }

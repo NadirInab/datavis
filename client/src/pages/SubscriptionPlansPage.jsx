@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/FirebaseAuthContext';
 import SubscriptionPlansComponent from '../components/subscription/SubscriptionPlans';
+import PaymentErrorBoundary from '../components/payment/PaymentErrorBoundary';
 import Button, { Icons } from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import paymentService from '../services/paymentService';
@@ -26,10 +27,40 @@ const SubscriptionPlansPage = () => {
   const loadSubscriptionData = async () => {
     try {
       setLoading(true);
+
+      // Check if paymentService has the required method
+      if (typeof paymentService.getSubscriptionStatus !== 'function') {
+        console.warn('paymentService.getSubscriptionStatus is not available, using fallback');
+        setSubscriptionStatus({
+          subscriptionId: null,
+          planType: 'free',
+          status: 'active',
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false,
+          trialEnd: null,
+          isTrialing: false,
+          paymentMethod: null
+        });
+        return;
+      }
+
       const status = await paymentService.getSubscriptionStatus(currentUser.id);
       setSubscriptionStatus(status);
     } catch (error) {
       console.error('Failed to load subscription data:', error);
+
+      // Set fallback subscription status
+      setSubscriptionStatus({
+        subscriptionId: null,
+        planType: 'free',
+        status: 'active',
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        trialEnd: null,
+        isTrialing: false,
+        paymentMethod: null,
+        error: error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -74,7 +105,8 @@ const SubscriptionPlansPage = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <PaymentErrorBoundary>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-3xl font-bold text-[#5A827E] mb-4">
@@ -191,7 +223,8 @@ const SubscriptionPlansPage = () => {
           <span className="text-sm">30-day money-back guarantee • Cancel anytime</span>
         </div>
       </div>
-    </div>
+      </div>
+    </PaymentErrorBoundary>
   );
 };
 

@@ -4,6 +4,7 @@ import { useAuth } from "../context/FirebaseAuthContext";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
 import { PublicRoute } from "../components/auth/ProtectedRoute";
 import { AdminRoute } from "../components/auth/ProtectedRoute";
+import LoadingScreen from "../components/ui/LoadingScreen";
 
 // Import pages
 import Dashboard from "../pages/Dashboard";
@@ -27,7 +28,12 @@ import AdminDashboard from "../pages/admin/AdminDashboard";
 import AppLayout from "../components/layouts/AppLayout";
 
 const AppRoutes = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
+
+  // Show loading screen while authentication is being determined
+  if (loading) {
+    return <LoadingScreen message="Initializing CSV Dashboard..." showProgress={true} />;
+  }
 
   return (
     <Routes>

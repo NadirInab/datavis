@@ -45,10 +45,16 @@ const connectDB = async () => {
       logger.error(`Database connection failed: ${error.message}`, error);
     }
     
-    // Don't exit process immediately to allow for retry
-    setTimeout(() => {
-      process.exit(1);
-    }, 5000);
+    // In development, don't exit process - allow server to run without database
+    if (process.env.NODE_ENV === 'production') {
+      setTimeout(() => {
+        process.exit(1);
+      }, 5000);
+    } else {
+      logger.warn('Running in development mode without database connection');
+      // Throw error to be caught by server.js
+      throw error;
+    }
   }
 };
 

@@ -12,6 +12,7 @@ import PieChartComponent from '../components/charts/PieChart';
 import AreaChartComponent from '../components/charts/AreaChart';
 import RadarChartComponent from '../components/charts/RadarChart';
 import BubbleChartComponent from '../components/charts/BubbleChart';
+import GeospatialVisualization from '../components/geospatial/GeospatialVisualization';
 import { setupTestEnvironment, debugVisualizationData, testExportFunctionality } from '../utils/visualizationTestUtils';
 import { DataPreviewErrorBoundary, TableErrorBoundary } from '../components/ErrorBoundary';
 import DataSummaryCards from '../components/DataSummaryCards';
@@ -59,7 +60,8 @@ const Visualize = () => {
     { id: 'pie', name: 'Pie Chart' },
     { id: 'area', name: 'Area Chart' },
     { id: 'radar', name: 'Radar Chart' },
-    { id: 'bubble', name: 'Bubble Chart' }
+    { id: 'bubble', name: 'Bubble Chart' },
+    { id: 'geospatial', name: 'Map Visualization' }
   ];
   
   useEffect(() => {
@@ -381,6 +383,17 @@ const Visualize = () => {
         return (
           <div className="h-96">
             <BubbleChartComponent data={vizData} />
+          </div>
+        );
+      case 'geospatial':
+        return (
+          <div className="min-h-96">
+            <GeospatialVisualization
+              data={file.data}
+              columns={file.columns}
+              title={viz.title || 'Geographic Visualization'}
+              onExport={handleExportComplete}
+            />
           </div>
         );
       default:

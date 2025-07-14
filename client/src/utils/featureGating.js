@@ -398,7 +398,18 @@ export const SUBSCRIPTION_TIERS = {
   },
   enterprise: {
     name: 'Enterprise',
-    features: Object.keys(FEATURES),
+    features: [
+      // All features available for enterprise
+      'csv_upload', 'tsv_upload', 'excel_upload', 'json_upload', 'xml_upload', 'txt_upload',
+      'google_sheets', 'basic_charts', 'advanced_charts', 'custom_styling', 'chart_export_png',
+      'chart_export_jpg', 'chart_export_pdf', 'chart_export_svg', 'data_export_csv',
+      'data_export_excel', 'data_export_json', 'data_preview', 'column_analysis',
+      'data_cleaning', 'dashboard_access', 'dashboard_customization', 'file_upload',
+      'file_sharing', 'file_versioning', 'extended_storage', 'user_profiles',
+      'team_management', 'basic_support', 'priority_support', 'api_access',
+      'white_labeling', 'custom_integrations', 'advanced_analytics', 'audit_logs',
+      'sso_integration', 'custom_branding'
+    ],
     limits: {
       files: -1, // unlimited
       storage: 1024 * 1024 * 1024, // 1GB

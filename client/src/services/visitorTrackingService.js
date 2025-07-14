@@ -3,7 +3,7 @@ import fingerprintService from './fingerprintService';
 class VisitorTrackingService {
   constructor() {
     this.storageKey = 'visitor_upload_data';
-    this.maxUploadsPerVisitor = 2; // Free tier limit
+    this.maxUploadsPerVisitor = 3; // Visitor limit (consistent with backend)
     this.maxFileSizeBytes = 2 * 1024 * 1024; // 2MB limit for guests
   }
 
@@ -11,10 +11,12 @@ class VisitorTrackingService {
   async initialize() {
     try {
       const visitorId = await fingerprintService.getVisitorId();
-      console.log('Visitor tracking initialized for ID:', visitorId);
+      // Visitor tracking initialized successfully
       return visitorId;
     } catch (error) {
-      console.error('Failed to initialize visitor tracking:', error);
+      if (import.meta.env.DEV) {
+        console.error('Failed to initialize visitor tracking:', error);
+      }
       throw error;
     }
   }
@@ -30,7 +32,9 @@ class VisitorTrackingService {
         lastActivity: new Date().toISOString()
       };
     } catch (error) {
-      console.error('Error reading visitor data:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error reading visitor data:', error);
+      }
       return {
         uploads: [],
         totalUploads: 0,
@@ -50,7 +54,9 @@ class VisitorTrackingService {
       };
       localStorage.setItem(this.storageKey, JSON.stringify(allData));
     } catch (error) {
-      console.error('Error saving visitor data:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error saving visitor data:', error);
+      }
     }
   }
 
@@ -89,7 +95,9 @@ class VisitorTrackingService {
         remainingUploads: this.maxUploadsPerVisitor - visitorData.totalUploads
       };
     } catch (error) {
-      console.error('Error checking upload permission:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error checking upload permission:', error);
+      }
       return {
         allowed: false,
         reason: 'Unable to verify upload permissions. Please try again.',
@@ -118,7 +126,7 @@ class VisitorTrackingService {
 
       this.saveVisitorData(visitorId, visitorData);
 
-      console.log('Upload recorded for visitor:', visitorId, uploadRecord);
+      // Upload recorded successfully
 
       return {
         success: true,
@@ -127,7 +135,9 @@ class VisitorTrackingService {
         remainingUploads: this.maxUploadsPerVisitor - visitorData.totalUploads
       };
     } catch (error) {
-      console.error('Error recording upload:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error recording upload:', error);
+      }
       return {
         success: false,
         error: error.message
@@ -152,7 +162,9 @@ class VisitorTrackingService {
         canUpload: visitorData.totalUploads < this.maxUploadsPerVisitor
       };
     } catch (error) {
-      console.error('Error getting visitor stats:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error getting visitor stats:', error);
+      }
       return {
         visitorId: 'unknown',
         totalUploads: 0,
@@ -186,11 +198,13 @@ class VisitorTrackingService {
       });
 
       localStorage.setItem(this.storageKey, JSON.stringify(allData));
-      console.log(`Cleaned up ${cleaned} old visitor records`);
+      // Cleaned up old visitor records
       
       return cleaned;
     } catch (error) {
-      console.error('Error cleaning up visitor data:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error cleaning up visitor data:', error);
+      }
       return 0;
     }
   }
@@ -210,7 +224,7 @@ class VisitorTrackingService {
       };
 
       // This would be sent to your backend
-      console.log('Would sync to backend:', payload);
+      // Backend sync payload prepared
       
       // Uncomment when backend is ready:
       // const response = await fetch(endpoint, {
@@ -229,7 +243,9 @@ class VisitorTrackingService {
 
       return { success: true, synced: true };
     } catch (error) {
-      console.error('Error syncing with backend:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error syncing with backend:', error);
+      }
       return { success: false, error: error.message };
     }
   }
@@ -241,9 +257,11 @@ class VisitorTrackingService {
       const allData = JSON.parse(localStorage.getItem(this.storageKey) || '{}');
       delete allData[visitorId];
       localStorage.setItem(this.storageKey, JSON.stringify(allData));
-      console.log('Reset data for visitor:', visitorId);
+      // Reset data for visitor
     } catch (error) {
-      console.error('Error resetting visitor data:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error resetting visitor data:', error);
+      }
     }
   }
 }

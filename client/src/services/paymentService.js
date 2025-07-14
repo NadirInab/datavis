@@ -217,6 +217,153 @@ class PaymentService {
       throw error;
     }
   }
+
+  /**
+   * Get subscription status for a user
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} Subscription status
+   */
+  async getSubscriptionStatus(userId) {
+    try {
+      // If payment is disabled, return mock data
+      if (!this.paymentEnabled) {
+        return {
+          subscriptionId: null,
+          planType: 'free',
+          status: 'active',
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false,
+          trialEnd: null,
+          isTrialing: false,
+          paymentMethod: null
+        };
+      }
+
+      const response = await fetch(`/api/v1/subscriptions/status/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        // If user not found or no subscription, return free plan
+        if (response.status === 404) {
+          return {
+            subscriptionId: null,
+            planType: 'free',
+            status: 'active',
+            currentPeriodEnd: null,
+            cancelAtPeriodEnd: false,
+            trialEnd: null,
+            isTrialing: false,
+            paymentMethod: null
+          };
+        }
+
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to get subscription status');
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Get subscription status failed:', error);
+
+      // Return fallback data instead of throwing
+      return {
+        subscriptionId: null,
+        planType: 'free',
+        status: 'active',
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        trialEnd: null,
+        isTrialing: false,
+        paymentMethod: null,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Get plan comparison data
+   * @param {string} currentPlan - Current user's plan
+   * @returns {Array} Array of plan objects with comparison data
+   */
+  getPlanComparison(currentPlan = 'free') {
+    const planOrder = ['free', 'pro', 'enterprise'];
+    const currentIndex = planOrder.indexOf(currentPlan);
+
+    return planOrder.map((planId, index) => {
+      const plan = SUBSCRIPTION_PLANS[planId];
+      const isCurrent = planId === currentPlan;
+      const isUpgrade = index > currentIndex;
+      const isDowngrade = index < currentIndex;
+
+      return {
+        ...plan,
+        isCurrent,
+        isUpgrade,
+        isDowngrade,
+        canSelect: !isCurrent,
+        recommended: planId === 'pro', // Mark Pro as recommended
+        savings: planId !== 'free' ? this.calculateYearlySavings(plan.price) : null,
+        monthlyPrice: plan.price,
+        yearlyPrice: planId !== 'free' ? plan.price * 10 : 0, // 2 months free on yearly
+        popularFeatures: this.getPopularFeatures(planId),
+        limitations: this.getPlanLimitations(planId)
+      };
+    });
+  }
+
+  /**
+   * Calculate yearly savings for a plan
+   * @param {number} monthlyPrice - Monthly price
+   * @returns {Object} Savings information
+   */
+  calculateYearlySavings(monthlyPrice) {
+    const yearlyPrice = monthlyPrice * 10; // 2 months free
+    const monthlyCost = monthlyPrice * 12;
+    const savings = monthlyCost - yearlyPrice;
+    const savingsPercentage = Math.round((savings / monthlyCost) * 100);
+
+    return {
+      amount: savings,
+      percentage: savingsPercentage,
+      yearlyPrice,
+      monthlyEquivalent: yearlyPrice / 12
+    };
+  }
+
+  /**
+   * Get popular features for a plan
+   * @param {string} planId - Plan ID
+   * @returns {Array} Array of popular features
+   */
+  getPopularFeatures(planId) {
+    const popularFeatures = {
+      free: ['Basic visualizations', 'Community support'],
+      pro: ['Advanced visualizations', 'PDF exports', 'Team sharing'],
+      enterprise: ['API access', 'White labeling', 'Priority support']
+    };
+
+    return popularFeatures[planId] || [];
+  }
+
+  /**
+   * Get plan limitations
+   * @param {string} planId - Plan ID
+   * @returns {Array} Array of limitations
+   */
+  getPlanLimitations(planId) {
+    const limitations = {
+      free: ['Limited to 5 files', 'Basic support only', '7-day data retention'],
+      pro: ['100MB storage limit', 'Email support only'],
+      enterprise: [] // No limitations for enterprise
+    };
+
+    return limitations[planId] || [];
+  }
 }
 
 export default new PaymentService();

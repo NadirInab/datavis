@@ -5,6 +5,7 @@ class FingerprintService {
     this.fpPromise = null;
     this.visitorId = null;
     this.initialized = false;
+    this.initializationPromise = null; // Prevent race conditions
   }
 
   // Initialize FingerprintJS
@@ -13,6 +14,17 @@ class FingerprintService {
       return this.visitorId;
     }
 
+    // Prevent race conditions - return existing promise if initialization is in progress
+    if (this.initializationPromise) {
+      return await this.initializationPromise;
+    }
+
+    this.initializationPromise = this._doInitialize();
+    return await this.initializationPromise;
+  }
+
+  // Internal initialization method
+  async _doInitialize() {
     try {
       // Initialize the agent at application startup
       this.fpPromise = FingerprintJS.load({
@@ -28,14 +40,16 @@ class FingerprintService {
       this.visitorId = result.visitorId;
       this.initialized = true;
 
-      console.log('FingerprintJS initialized with visitor ID:', this.visitorId);
+      // FingerprintJS initialized successfully
       
       // Store in localStorage as backup
       localStorage.setItem('visitor_fingerprint', this.visitorId);
       
       return this.visitorId;
     } catch (error) {
-      console.error('Failed to initialize FingerprintJS:', error);
+      if (import.meta.env.DEV) {
+        console.error('Failed to initialize FingerprintJS:', error);
+      }
       
       // Fallback to localStorage or generate a random ID
       let fallbackId = localStorage.getItem('visitor_fingerprint');
@@ -46,8 +60,10 @@ class FingerprintService {
       
       this.visitorId = fallbackId;
       this.initialized = true;
-      
+
       return this.visitorId;
+    } finally {
+      this.initializationPromise = null; // Clear the promise
     }
   }
 
@@ -89,7 +105,9 @@ class FingerprintService {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      console.error('Failed to get visitor info:', error);
+      if (import.meta.env.DEV) {
+        console.error('Failed to get visitor info:', error);
+      }
       return {
         visitorId: this.visitorId || await this.getVisitorId(),
         confidence: 0,
@@ -110,6 +128,7 @@ class FingerprintService {
     this.fpPromise = null;
     this.visitorId = null;
     this.initialized = false;
+    this.initializationPromise = null;
     localStorage.removeItem('visitor_fingerprint');
   }
 }

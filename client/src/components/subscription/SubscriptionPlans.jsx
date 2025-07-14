@@ -8,8 +8,59 @@ const SubscriptionPlans = ({ onPlanSelect, currentPlan = 'free', showCurrentPlan
   const { currentUser, isVisitor } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [error, setError] = useState(null);
 
-  const plans = paymentService.getPlanComparison(currentPlan);
+  // Initialize plans with error handling
+  useEffect(() => {
+    try {
+      if (typeof paymentService.getPlanComparison !== 'function') {
+        console.warn('paymentService.getPlanComparison is not available, using fallback');
+
+        // Fallback plan data
+        const fallbackPlans = Object.keys(SUBSCRIPTION_PLANS).map(planId => ({
+          ...SUBSCRIPTION_PLANS[planId],
+          isCurrent: planId === currentPlan,
+          isUpgrade: planId !== 'free' && currentPlan === 'free',
+          isDowngrade: false,
+          canSelect: planId !== currentPlan,
+          recommended: planId === 'pro',
+          savings: null,
+          monthlyPrice: SUBSCRIPTION_PLANS[planId].price,
+          yearlyPrice: planId !== 'free' ? SUBSCRIPTION_PLANS[planId].price * 10 : 0,
+          popularFeatures: SUBSCRIPTION_PLANS[planId].features.slice(0, 2),
+          limitations: []
+        }));
+
+        setPlans(fallbackPlans);
+        return;
+      }
+
+      const planData = paymentService.getPlanComparison(currentPlan);
+      setPlans(planData);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load plan comparison:', err);
+      setError(err.message);
+
+      // Set fallback plans
+      const fallbackPlans = Object.keys(SUBSCRIPTION_PLANS).map(planId => ({
+        ...SUBSCRIPTION_PLANS[planId],
+        isCurrent: planId === currentPlan,
+        isUpgrade: planId !== 'free' && currentPlan === 'free',
+        isDowngrade: false,
+        canSelect: planId !== currentPlan,
+        recommended: planId === 'pro',
+        savings: null,
+        monthlyPrice: SUBSCRIPTION_PLANS[planId].price,
+        yearlyPrice: planId !== 'free' ? SUBSCRIPTION_PLANS[planId].price * 10 : 0,
+        popularFeatures: SUBSCRIPTION_PLANS[planId].features.slice(0, 2),
+        limitations: []
+      }));
+
+      setPlans(fallbackPlans);
+    }
+  }, [currentPlan]);
 
   const handlePlanSelect = async (planId) => {
     if (loading) return;
@@ -67,6 +118,45 @@ const SubscriptionPlans = ({ onPlanSelect, currentPlan = 'free', showCurrentPlan
     if (price === 0) return 'Free';
     return `$${price.toFixed(2)}`;
   };
+
+  // Show error message if there's an error loading plans
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto text-center p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <Icons.AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+          <h3 className="text-lg font-semibold text-red-800 mb-2">
+            Unable to Load Subscription Plans
+          </h3>
+          <p className="text-red-600 mb-4">
+            {error}
+          </p>
+          <Button
+            onClick={() => window.location.reload()}
+            variant="outline"
+            className="border-red-300 text-red-700 hover:bg-red-50"
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state if plans are empty
+  if (plans.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto text-center p-6">
+        <div className="animate-pulse">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-gray-200 rounded-lg h-96"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

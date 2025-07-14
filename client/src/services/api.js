@@ -2,7 +2,11 @@
 import axios from 'axios';
 
 // API base configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
+
+// Request throttling cache
+const requestCache = new Map();
+const REQUEST_CACHE_DURATION = 5000; // 5 seconds
 
 // Create axios instance
 const api = axios.create({
@@ -11,7 +15,20 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true // Enable if using cookies for auth
 });
+
+// Add request interceptor for debugging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`Making ${config.method.toUpperCase()} request to: ${config.baseURL}${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
@@ -52,12 +69,47 @@ api.interceptors.response.use(
 
 // Authentication API calls
 export const authAPI = {
-  // Verify Firebase token with backend
-  verifyToken: async (idToken) => {
+  // Verify Firebase token with backend (with throttling)
+  verifyToken: async (idToken, additionalData = {}) => {
+    const cacheKey = `verify_token_${idToken.substring(0, 20)}`;
+    const now = Date.now();
+
+    // Check cache first (shorter cache for auth tokens)
+    if (requestCache.has(cacheKey)) {
+      const cached = requestCache.get(cacheKey);
+      if (now - cached.timestamp < 30000) { // 30 second cache for auth
+        return cached.data;
+      }
+    }
+
     try {
-      const response = await api.post('/auth/verify', { idToken });
+      const { signal, ...otherData } = additionalData;
+      const config = signal ? { signal } : {};
+      const response = await api.post('/auth/verify', { idToken, ...otherData }, config);
+
+      // Cache successful responses only
+      if (response.data.success) {
+        requestCache.set(cacheKey, {
+          data: response.data,
+          timestamp: now
+        });
+      }
+
       return response.data;
     } catch (error) {
+      // Don't log errors for aborted requests
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        throw error;
+      }
+
+      if (import.meta.env.DEV) {
+        console.error('Token verification error:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+          isNetworkError: error.code === 'ERR_NETWORK'
+        });
+      }
       throw error.response?.data || error;
     }
   },
@@ -104,8 +156,36 @@ export const authAPI = {
 
   // Get visitor session info
   getVisitorInfo: async () => {
+    const cacheKey = 'visitor_info';
+    const now = Date.now();
+
+    // Check cache first
+    if (requestCache.has(cacheKey)) {
+      const cached = requestCache.get(cacheKey);
+      if (now - cached.timestamp < REQUEST_CACHE_DURATION) {
+        return cached.data;
+      }
+    }
+
     try {
       const response = await api.get('/auth/visitor');
+
+      // Cache the response
+      requestCache.set(cacheKey, {
+        data: response.data,
+        timestamp: now
+      });
+
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Migrate visitor data to user account
+  migrateVisitorData: async (migrationData) => {
+    try {
+      const response = await api.post('/auth/migrate-visitor', migrationData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

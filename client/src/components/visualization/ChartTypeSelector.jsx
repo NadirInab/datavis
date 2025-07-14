@@ -50,6 +50,14 @@ const ChartTypeSelector = ({ selectedType, onTypeChange, className = '' }) => {
       icon: Icons.Circle,
       color: 'from-pink-500 to-pink-600',
       recommended: ['correlation', 'three-dimensional']
+    },
+    {
+      id: 'geospatial',
+      name: 'Map Visualization',
+      description: 'Interactive maps with geographic data',
+      icon: Icons.MapPin,
+      color: 'from-emerald-500 to-emerald-600',
+      recommended: ['geographic', 'location-based', 'GPS']
     }
   ];
 

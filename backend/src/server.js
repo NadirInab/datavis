@@ -25,8 +25,11 @@ const app = express();
 // Initialize Firebase Admin SDK
 initializeFirebase();
 
-// Connect to database
-connectDB();
+// Connect to database (with graceful fallback)
+connectDB().catch(error => {
+  logger.warn('Database connection failed, running in fallback mode:', error.message);
+  // Server will continue running without database for testing purposes
+});
 
 // Security middleware
 app.use(helmet());
@@ -53,8 +56,8 @@ const generalLimiter = createLimiter(
   parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
   'Too many requests'
 );
-const authLimiter = createLimiter(15 * 60 * 1000, 10, 'Too many authentication attempts');
-const adminLimiter = createLimiter(15 * 60 * 1000, 50, 'Too many admin requests');
+const authLimiter = createLimiter(15 * 60 * 1000, 200, 'Too many authentication attempts');
+const adminLimiter = createLimiter(15 * 60 * 1000, 100, 'Too many admin requests');
 
 app.use('/api/', generalLimiter);
 
@@ -150,7 +153,8 @@ app.use('*', (req, res) => {
 // Global error handler
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
+console.log('Starting server on port:', PORT);
 
 const server = app.listen(PORT, () => {
   logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
