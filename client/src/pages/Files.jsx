@@ -197,7 +197,7 @@ const Files = () => {
                       {formatDate(file?.uploadedAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {typeof file?.rows === 'number' ? file.rows : '?'} rows × {typeof file?.columns === 'number' ? file.columns : '?'} columns
+                      {typeof file?.rows === 'number' ? file.rows : '?'} rows × {file?.columnCount || file?.columns?.length || '?'} columns
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">

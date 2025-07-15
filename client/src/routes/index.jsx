@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { useAuth } from "../context/FirebaseAuthContext";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
 import { PublicRoute } from "../components/auth/ProtectedRoute";
@@ -7,6 +7,8 @@ import { AdminRoute } from "../components/auth/ProtectedRoute";
 import LoadingScreen from "../components/ui/LoadingScreen";
 
 // Import pages
+import LandingPage from "../pages/LandingPage";
+import LandingPageTest from "../pages/LandingPageTest";
 import Dashboard from "../pages/Dashboard";
 import SignIn from "../pages/SignIn";
 import SignUp from "../pages/SignUp";
@@ -37,18 +39,23 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      {/* Public routes - Allow visitors to access the app */}
+      {/* Public routes - Landing page for all visitors */}
       <Route
         path="/"
+        element={<LandingPage />}
+      />
+
+      <Route
+        path="/signin"
         element={
           <PublicRoute redirectIfAuthenticated={true} redirectTo="/app">
-            <Navigate to="/app" replace />
+            <SignIn />
           </PublicRoute>
         }
       />
 
       <Route
-        path="/signin"
+        path="/login"
         element={
           <PublicRoute redirectIfAuthenticated={true} redirectTo="/app">
             <SignIn />
@@ -65,10 +72,20 @@ const AppRoutes = () => {
         }
       />
 
+      <Route
+        path="/register"
+        element={
+          <PublicRoute redirectIfAuthenticated={true} redirectTo="/app">
+            <SignUp />
+          </PublicRoute>
+        }
+      />
+
       <Route path="/subscription-plans" element={<SubscriptionPlansPage />} />
       <Route path="/mock-payment" element={<MockPaymentPage />} />
       <Route path="/subscription/success" element={<PaymentSuccessPage />} />
       <Route path="/test/visualization" element={<VisualizationTest />} />
+      <Route path="/test/landing" element={<LandingPageTest />} />
       <Route path="/debug/fingerprint" element={<FingerprintDebug />} />
 
       {/* Protected app routes */}

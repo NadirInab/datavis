@@ -4,7 +4,7 @@ import Button, { Icons } from '../ui/Button';
 import Card from '../ui/Card';
 
 const RoleBasedTester = () => {
-  const { currentUser, isAdmin, isVisitor, hasFeature } = useAuth();
+  const { currentUser, firebaseUser, isAdmin, isVisitor, hasFeature } = useAuth();
   const [testResults, setTestResults] = useState({});
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState('current');
@@ -154,7 +154,7 @@ const RoleBasedTester = () => {
         };
       }
 
-      const token = await currentUser.getIdToken();
+      const token = await firebaseUser.getIdToken();
       const response = await fetch(endpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,

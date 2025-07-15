@@ -106,6 +106,20 @@ const userSchema = new mongoose.Schema({
     lastResetDate: {
       type: Date,
       default: Date.now
+    },
+    // Permanent upload counter - NEVER decreases
+    totalUploadsCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    firstUploadDate: {
+      type: Date,
+      default: null
+    },
+    lastUploadDate: {
+      type: Date,
+      default: null
     }
   },
   
@@ -307,6 +321,44 @@ userSchema.index({ lastActivityAt: -1 });
 //     this.exportUsage.lastResetDate = now;
 //   }
 // };
+
+// Method to increment permanent upload counter
+userSchema.methods.incrementUploadCounter = function() {
+  this.fileUsage.totalUploadsCount += 1;
+  this.fileUsage.lastUploadDate = new Date();
+
+  // Set first upload date if this is the first upload
+  if (!this.fileUsage.firstUploadDate) {
+    this.fileUsage.firstUploadDate = new Date();
+  }
+
+  return this.save();
+};
+
+// Method to check if user has reached permanent upload limit
+userSchema.methods.hasReachedPermanentUploadLimit = function() {
+  const PERMANENT_UPLOAD_LIMIT = 5;
+  return this.fileUsage.totalUploadsCount >= PERMANENT_UPLOAD_LIMIT;
+};
+
+// Method to get remaining permanent uploads
+userSchema.methods.getRemainingPermanentUploads = function() {
+  const PERMANENT_UPLOAD_LIMIT = 5;
+  return Math.max(0, PERMANENT_UPLOAD_LIMIT - this.fileUsage.totalUploadsCount);
+};
+
+// Virtual for upload limit info
+userSchema.virtual('uploadLimitInfo').get(function() {
+  const PERMANENT_UPLOAD_LIMIT = 5;
+  return {
+    totalUploadsCount: this.fileUsage.totalUploadsCount,
+    permanentLimit: PERMANENT_UPLOAD_LIMIT,
+    remainingUploads: this.getRemainingPermanentUploads(),
+    hasReachedLimit: this.hasReachedPermanentUploadLimit(),
+    firstUploadDate: this.fileUsage.firstUploadDate,
+    lastUploadDate: this.fileUsage.lastUploadDate
+  };
+});
 
 // userSchema.pre('save', function(next) {
 //   this.lastActivityAt = new Date();

@@ -377,7 +377,7 @@ const FileManager = () => {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-semibold text-gray-900 group-hover:text-primary-700 transition-colors duration-200">{file.name}</div>
-                        <div className="text-sm text-gray-500">{file.columns} columns</div>
+                        <div className="text-sm text-gray-500">{file.columnCount || file.columns?.length || 0} columns</div>
                       </div>
                     </div>
                   </td>

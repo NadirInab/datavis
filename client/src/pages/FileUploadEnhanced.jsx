@@ -485,7 +485,8 @@ const FileUploadEnhanced = () => {
         format: parsedData.detectedFormat,
         uploadedAt: new Date().toISOString(),
         rows: parsedData.rowCount,
-        columns: parsedData.headers.length,
+        columns: parsedData.headers, // Store actual column names array
+        columnCount: parsedData.headers.length, // Store count separately
         columnTypes: parsedData.columnAnalysis,
         visualizations: recommendedVisualizations,
         data: parsedData.data.slice(0, 1000),

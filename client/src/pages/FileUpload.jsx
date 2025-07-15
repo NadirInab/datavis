@@ -8,6 +8,7 @@ import { UploadProgress, LoadingOverlay } from '../components/loading/LoadingSpi
 import { parseFile, parseGoogleSheets, SUPPORTED_FORMATS, detectFileFormat } from '../utils/fileParser';
 import { validateFileFormatAccess, trackFeatureUsage } from '../utils/featureGating';
 import UpgradePrompt, { useUpgradePrompt } from '../components/premium/UpgradePrompt';
+import PermanentUploadLimitDisplay from '../components/upload/PermanentUploadLimitDisplay';
 import {
   validateFileUpload,
   validateFileContent,
@@ -183,7 +184,7 @@ const UserDetails = ({ user, onEdit, onUpgrade }) => {
 };
 
 const FileUpload = () => {
-  const { currentUser, hasReachedFileLimit, incrementFileCount, isVisitor } = useAuth();
+  const { currentUser, hasReachedFileLimit, incrementFileCount, isVisitor, canUpload } = useAuth();
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -499,6 +500,15 @@ const FileUpload = () => {
       return;
     }
 
+    // Check permanent upload limit first (for authenticated users)
+    if (currentUser) {
+      const uploadCheck = await canUpload(file.size);
+      if (!uploadCheck.allowed && uploadCheck.isPermanentLimit) {
+        setError(uploadCheck.reason);
+        return;
+      }
+    }
+
     // Final validation before upload
     const validation = validateFileUpload(file, currentUser);
     if (!validation.valid) {
@@ -582,7 +592,8 @@ const FileUpload = () => {
         format: parsedData.detectedFormat,
         uploadedAt: new Date().toISOString(),
         rows: parsedData.rowCount,
-        columns: parsedData.headers.length,
+        columns: parsedData.headers, // Store actual column names array
+        columnCount: parsedData.headers.length, // Store count separately
         columnTypes: parsedData.columnAnalysis,
         visualizations: recommendedVisualizations,
         data: parsedData.data.slice(0, 1000)
@@ -596,6 +607,28 @@ const FileUpload = () => {
       if (isVisitor() || !currentUser) {
         recordGuestUpload(file, fileRecord);
         window.dispatchEvent(new Event('guest-files-updated'));
+      } else {
+        // For authenticated users, increment permanent upload counter
+        // This would normally be done on the backend, but since the backend endpoint
+        // is not implemented yet, we'll simulate it in localStorage
+        const currentCount = currentUser.fileUsage?.totalUploadsCount || 0;
+        const updatedUser = {
+          ...currentUser,
+          fileUsage: {
+            ...currentUser.fileUsage,
+            totalUploadsCount: currentCount + 1,
+            lastUploadDate: new Date().toISOString(),
+            firstUploadDate: currentUser.fileUsage?.firstUploadDate || new Date().toISOString()
+          }
+        };
+
+        // Store updated user data (this would normally be handled by backend)
+        localStorage.setItem('user_upload_data', JSON.stringify(updatedUser.fileUsage));
+
+        // Trigger a custom event to update the auth context
+        window.dispatchEvent(new CustomEvent('user-upload-counter-updated', {
+          detail: { fileUsage: updatedUser.fileUsage }
+        }));
       }
 
       incrementFileCount();
@@ -714,6 +747,15 @@ const FileUpload = () => {
           <span>Secure upload • Multiple formats supported</span>
         </div>
       </div>
+
+      {/* Permanent Upload Limit Display */}
+      {currentUser && (
+        <div className="mb-6">
+          <PermanentUploadLimitDisplay
+            variant={currentUser.fileUsage?.totalUploadsCount >= 5 ? 'banner' : 'compact'}
+          />
+        </div>
+      )}
 
       {/* Usage Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

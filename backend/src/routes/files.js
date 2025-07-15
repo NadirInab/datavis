@@ -1,58 +1,57 @@
 const express = require('express');
 const router = express.Router();
 
-const { protect, optionalAuth, checkSubscriptionLimits, checkVisitorLimits } = require('../middleware/auth');
-
-// File management routes - basic structure
+const { protect, optionalAuth, checkSubscriptionLimits, checkPermanentUploadLimit, checkVisitorLimits, trackVisitor } = require('../middleware/auth');
+const { uploadMiddleware, cleanupMiddleware } = require('../middleware/upload');
+const {
+  uploadFile,
+  getFiles,
+  getFileDetails,
+  deleteFile,
+  downloadFile
+} = require('../controllers/fileController');
 
 // @route   POST /api/v1/files/upload
 // @desc    Upload CSV file
 // @access  Public (with optional auth)
-router.post('/upload', optionalAuth, checkVisitorLimits, checkSubscriptionLimits('files'), (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'File upload endpoint - to be implemented with file processing',
-    visitorLimits: req.visitorLimits // Include visitor limit info in response
-  });
-});
+router.post('/upload',
+  optionalAuth,
+  trackVisitor,
+  checkVisitorLimits,
+  checkPermanentUploadLimit,
+  checkSubscriptionLimits('files'),
+  uploadMiddleware,
+  uploadFile,
+  cleanupMiddleware
+);
 
 // @route   GET /api/v1/files
 // @desc    List user files
 // @access  Private
-router.get('/', protect, (req, res) => {
-  res.status(501).json({ 
-    success: false,
-    message: 'List files endpoint - to be implemented' 
-  });
-});
+router.get('/', protect, getFiles);
 
 // @route   GET /api/v1/files/:id
 // @desc    Get file details
 // @access  Private
-router.get('/:id', protect, (req, res) => {
-  res.status(501).json({ 
-    success: false,
-    message: 'Get file details endpoint - to be implemented' 
-  });
-});
+router.get('/:id', protect, getFileDetails);
 
 // @route   DELETE /api/v1/files/:id
 // @desc    Delete file
 // @access  Private
-router.delete('/:id', protect, (req, res) => {
-  res.status(501).json({ 
-    success: false,
-    message: 'Delete file endpoint - to be implemented' 
-  });
-});
+router.delete('/:id', protect, deleteFile);
+
+// @route   GET /api/v1/files/download/:token
+// @desc    Download file with secure token
+// @access  Public (with valid token)
+router.get('/download/:token', downloadFile);
 
 // @route   POST /api/v1/files/:id/visualize
 // @desc    Create visualization
 // @access  Private
 router.post('/:id/visualize', protect, (req, res) => {
-  res.status(501).json({ 
+  res.status(501).json({
     success: false,
-    message: 'Create visualization endpoint - to be implemented' 
+    message: 'Create visualization endpoint - to be implemented in next phase'
   });
 });
 

@@ -150,26 +150,62 @@ export const StatsCard = ({
   );
 };
 
-// Feature Card component
-export const FeatureCard = ({ 
-  icon: IconComponent, 
-  title, 
-  description, 
+// Enhanced Feature Card component with 3D hover effects
+export const FeatureCard = ({
+  icon: IconComponent,
+  title,
+  description,
   action,
-  className = '' 
+  className = ''
 }) => (
-  <Card hover className={`text-center group ${className}`}>
-    <div className="flex flex-col items-center">
-      {IconComponent && (
-        <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform duration-200">
-          <IconComponent />
+  <div
+    className={`group perspective-1000 ${className}`}
+    style={{ perspective: '1000px' }}
+  >
+    <Card
+      className="text-center transition-all duration-500 ease-out transform-gpu group-hover:scale-105 group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-primary-500/10 bg-gradient-to-br from-white to-primary-50/50 border border-primary-200/60 backdrop-blur-sm"
+      style={{
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.5s ease-out, box-shadow 0.3s ease-out'
+      }}
+      onMouseMove={(e) => {
+        const card = e.currentTarget;
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const rotateX = (y - centerY) / 10;
+        const rotateY = (centerX - x) / 10;
+
+        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(20px)`;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)';
+      }}
+    >
+      <div className="flex flex-col items-center relative z-10">
+        {IconComponent && (
+          <div className="relative mb-6">
+            <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-3xl flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
+              <IconComponent className="w-8 h-8" />
+            </div>
+            {/* Floating animation elements */}
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent-400 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-bounce transition-opacity duration-300 delay-100"></div>
+            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-secondary-400 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-bounce transition-opacity duration-300 delay-200"></div>
+          </div>
+        )}
+        <h3 className="text-xl font-bold text-primary-900 mb-4 group-hover:text-primary-700 transition-colors duration-300">{title}</h3>
+        <p className="text-primary-600 mb-6 leading-relaxed group-hover:text-primary-700 transition-colors duration-300">{description}</p>
+        <div className="group-hover:scale-105 transition-transform duration-300">
+          {action}
         </div>
-      )}
-      <h3 className="text-lg font-semibold text-gray-900 mb-3">{title}</h3>
-      <p className="text-gray-600 mb-6 leading-relaxed">{description}</p>
-      {action}
-    </div>
-  </Card>
+      </div>
+
+      {/* Subtle background gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary-50/0 to-secondary-50/0 group-hover:from-primary-50/30 group-hover:to-secondary-50/20 rounded-xl transition-all duration-500 pointer-events-none"></div>
+    </Card>
+  </div>
 );
 
 // File Card component
@@ -194,7 +230,7 @@ export const FileCard = ({
         <h4 className="text-sm font-medium text-gray-900 truncate">{file.name}</h4>
         <div className="flex items-center space-x-4 mt-1">
           <span className="text-xs text-gray-500">{file.rows} rows</span>
-          <span className="text-xs text-gray-500">{file.columns} columns</span>
+          <span className="text-xs text-gray-500">{file.columnCount || file.columns?.length || 0} columns</span>
           <span className="text-xs text-gray-500">{file.size}</span>
         </div>
       </div>

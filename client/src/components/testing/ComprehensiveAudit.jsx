@@ -4,7 +4,7 @@ import Button, { Icons } from '../ui/Button';
 import Card from '../ui/Card';
 
 const ComprehensiveAudit = () => {
-  const { currentUser, isAdmin, isVisitor, hasFeature } = useAuth();
+  const { currentUser, firebaseUser, isAdmin, isVisitor, hasFeature } = useAuth();
   const [auditResults, setAuditResults] = useState({});
   const [loading, setLoading] = useState(false);
   const [currentTest, setCurrentTest] = useState('');
@@ -30,11 +30,11 @@ const ComprehensiveAudit = () => {
       {
         name: 'JWT Token Validation',
         test: async () => {
-          if (!currentUser) {
+          if (!currentUser || !firebaseUser) {
             return { success: false, message: 'No authenticated user', details: {} };
           }
           try {
-            const token = await currentUser.getIdToken();
+            const token = await firebaseUser.getIdToken();
             return {
               success: !!token,
               details: { tokenLength: token.length, hasToken: !!token },
@@ -184,7 +184,7 @@ const ComprehensiveAudit = () => {
           }
           
           try {
-            const token = await currentUser.getIdToken();
+            const token = await firebaseUser.getIdToken();
             const response = await fetch('/api/v1/admin/users?limit=5', {
               headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -216,7 +216,7 @@ const ComprehensiveAudit = () => {
           }
           
           try {
-            const token = await currentUser.getIdToken();
+            const token = await firebaseUser.getIdToken();
             const response = await fetch('/api/v1/admin/system/status', {
               headers: { 'Authorization': `Bearer ${token}` }
             });

@@ -452,7 +452,7 @@ const Visualize = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">{file.name}</h1>
           <p className="mt-2 text-gray-600">
-            {file.rows?.toLocaleString() || 'N/A'} rows • {file.columns || 'N/A'} columns •
+            {file.rows?.toLocaleString() || 'N/A'} rows • {file.columnCount || file.columns?.length || 'N/A'} columns •
             {file.visualizations?.length || 0} visualizations
           </p>
         </div>

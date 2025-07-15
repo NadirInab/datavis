@@ -4,7 +4,7 @@ import { getAllFeatures, getFeatureUsageStats } from '../../utils/featureGating'
 import { EXPORT_FORMATS } from '../../utils/chartExport';
 
 const AdminTest = () => {
-  const { currentUser, isAdmin, isVisitor, hasFeature } = useAuth();
+  const { currentUser, firebaseUser, isAdmin, isVisitor, hasFeature } = useAuth();
   const [testResults, setTestResults] = useState({
     auth: null,
     users: null,
@@ -30,8 +30,8 @@ const AdminTest = () => {
 
     try {
       // Test 1: Check authentication
-      if (currentUser && isAdmin()) {
-        const token = await currentUser.getIdToken();
+      if (currentUser && isAdmin() && firebaseUser) {
+        const token = await firebaseUser.getIdToken();
         results.auth = {
           success: true,
           token: token.substring(0, 20) + '...',
@@ -56,9 +56,9 @@ const AdminTest = () => {
       }
 
       // Test 2: Test users endpoint (admin only)
-      if (currentUser && isAdmin()) {
+      if (currentUser && isAdmin() && firebaseUser) {
         try {
-          const token = await currentUser.getIdToken();
+          const token = await firebaseUser.getIdToken();
           const response = await fetch('/api/v1/admin/users?limit=5', {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -78,9 +78,9 @@ const AdminTest = () => {
       }
 
       // Test 3: Test system status endpoint (admin only)
-      if (currentUser && isAdmin()) {
+      if (currentUser && isAdmin() && firebaseUser) {
         try {
-          const token = await currentUser.getIdToken();
+          const token = await firebaseUser.getIdToken();
           const response = await fetch('/api/v1/admin/system/status', {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -100,9 +100,9 @@ const AdminTest = () => {
       }
 
       // Test 4: Test payments endpoint (admin only)
-      if (currentUser && isAdmin()) {
+      if (currentUser && isAdmin() && firebaseUser) {
         try {
-          const token = await currentUser.getIdToken();
+          const token = await firebaseUser.getIdToken();
           const response = await fetch('/api/v1/payments/admin/history?limit=5', {
             headers: {
               'Authorization': `Bearer ${token}`,

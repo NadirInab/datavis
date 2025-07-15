@@ -1,0 +1,16 @@
+business_name,address,lat,lon,revenue,employees,industry
+Starbucks Coffee,123 Main St,40.7580,-73.9855,50000,15,Food & Beverage
+Apple Store,456 Broadway,40.7614,-73.9776,200000,25,Technology
+McDonald's,789 5th Ave,40.7648,-73.9734,75000,20,Food & Beverage
+Nike Store,321 Times Sq,40.7589,-73.9851,150000,18,Retail
+Best Buy,654 Park Ave,40.7686,-73.9692,120000,30,Electronics
+Target,987 Madison Ave,40.7728,-73.9648,180000,45,Retail
+Whole Foods,147 Lexington Ave,40.7774,-73.9598,90000,35,Grocery
+CVS Pharmacy,258 3rd Ave,40.7821,-73.9545,60000,12,Healthcare
+Bank of America,369 Wall St,40.7074,-74.0113,300000,50,Financial
+Chase Bank,741 Broadway,40.7228,-73.9969,280000,40,Financial
+H&M,852 5th Ave,40.7614,-73.9776,95000,22,Fashion
+Zara,963 Madison Ave,40.7728,-73.9648,110000,28,Fashion
+Duane Reade,159 Lexington Ave,40.7774,-73.9598,45000,8,Pharmacy
+Subway,357 Broadway,40.7228,-73.9969,35000,6,Food & Beverage
+Pizza Hut,468 Times Sq,40.7589,-73.9851,40000,10,Food & Beverage

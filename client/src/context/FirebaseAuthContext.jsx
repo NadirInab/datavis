@@ -292,6 +292,10 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.verifyToken(idToken, { visitorId, signal: abortControllerRef.current.signal });
       if (response.success) {
         const userData = response.data.user;
+        // Load permanent upload counter from localStorage (temporary until backend is implemented)
+        const storedFileUsage = localStorage.getItem('user_upload_data');
+        const localFileUsage = storedFileUsage ? JSON.parse(storedFileUsage) : {};
+
         const transformedUser = {
           id: userData.firebaseUid,
           name: userData.name,
@@ -308,6 +312,15 @@ export const AuthProvider = ({ children }) => {
           isEmailVerified: userData.isEmailVerified,
           subscriptionLimits: userData.subscriptionLimits || {},
           preferences: userData.preferences || {},
+          // Add permanent upload tracking (merge backend data with local data)
+          fileUsage: {
+            totalFiles: userData.fileUsage?.totalFiles ?? 0,
+            storageUsed: userData.fileUsage?.storageUsed ?? 0,
+            // Permanent upload counter (use local data until backend is implemented)
+            totalUploadsCount: localFileUsage.totalUploadsCount ?? userData.fileUsage?.totalUploadsCount ?? 0,
+            firstUploadDate: localFileUsage.firstUploadDate ?? userData.fileUsage?.firstUploadDate ?? null,
+            lastUploadDate: localFileUsage.lastUploadDate ?? userData.fileUsage?.lastUploadDate ?? null
+          },
           visitorId
         };
         setCurrentUser(transformedUser);
@@ -402,6 +415,27 @@ export const AuthProvider = ({ children }) => {
     });
     return unsubscribe;
   }, [debouncedVerifyAndSyncUser]);
+
+  // Listen for upload counter updates
+  useEffect(() => {
+    const handleUploadCounterUpdate = (event) => {
+      if (currentUser && event.detail?.fileUsage) {
+        setCurrentUser(prev => ({
+          ...prev,
+          fileUsage: {
+            ...prev.fileUsage,
+            ...event.detail.fileUsage
+          }
+        }));
+      }
+    };
+
+    window.addEventListener('user-upload-counter-updated', handleUploadCounterUpdate);
+
+    return () => {
+      window.removeEventListener('user-upload-counter-updated', handleUploadCounterUpdate);
+    };
+  }, [currentUser]);
 
   // Expose a manual retry function for UI
   const retryUserSync = () => {
@@ -605,16 +639,43 @@ export const AuthProvider = ({ children }) => {
   // Check if user/visitor can upload
   const canUpload = async (fileSize = 0) => {
     if (currentUser) {
-      // For authenticated users, use existing logic
-      if (currentUser.filesLimit === -1) return { allowed: true };
-      
+      // First check permanent upload limit (applies to all authenticated users)
+      const permanentLimit = 5;
+      const totalUploadsCount = currentUser.fileUsage?.totalUploadsCount || 0;
+
+      if (totalUploadsCount >= permanentLimit) {
+        return {
+          allowed: false,
+          reason: 'Permanent upload limit reached. You have used all 5 lifetime uploads.',
+          details: 'Deleting files does not restore upload capacity. This limit prevents abuse of the free service.',
+          limitType: 'permanent',
+          totalUploadsCount,
+          permanentLimit,
+          remainingUploads: 0,
+          isPermanentLimit: true
+        };
+      }
+
+      // Then check subscription-based current file limit
+      if (currentUser.filesLimit === -1) {
+        return {
+          allowed: true,
+          totalUploadsCount,
+          permanentLimit,
+          remainingUploads: permanentLimit - totalUploadsCount
+        };
+      }
+
       const remaining = currentUser.filesLimit - (currentUser.filesCount || 0);
       return {
         allowed: remaining > 0,
         reason: remaining <= 0 ? 'File limit reached for your subscription' : null,
         currentUploads: currentUser.filesCount || 0,
         maxUploads: currentUser.filesLimit,
-        remainingUploads: remaining
+        remainingUploads: remaining,
+        totalUploadsCount,
+        permanentLimit,
+        remainingPermanentUploads: permanentLimit - totalUploadsCount
       };
     } else {
       // For visitors, use fingerprint-based tracking
@@ -687,6 +748,21 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Failed to get visitor ID:', error);
+      }
+      return null;
+    }
+  };
+
+  // Get current user ID token safely
+  const getCurrentUserToken = async () => {
+    try {
+      if (firebaseUser) {
+        return await firebaseUser.getIdToken();
+      }
+      return null;
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Failed to get user token:', error);
       }
       return null;
     }
@@ -766,6 +842,7 @@ export const AuthProvider = ({ children }) => {
     getUserType,
     getRemainingFiles,
     getVisitorId,
+    getCurrentUserToken,
     subscriptionLimits,
     setAuthError,
     // Feature access methods

@@ -72,7 +72,7 @@ const ChartTypeSelector = ({ selectedType, onTypeChange, className = '' }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {chartTypes.map((chart) => {
-          const IconComponent = chart.icon;
+          const IconComponent = chart.icon || Icons.Chart; // Fallback to Chart icon if undefined
           const isSelected = selectedType === chart.id;
           
           return (

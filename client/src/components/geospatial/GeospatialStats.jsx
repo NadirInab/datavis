@@ -11,6 +11,77 @@ const GeospatialStats = ({
   categoryColumn,
   className = ''
 }) => {
+  // Helper functions (moved before useMemo to avoid temporal dead zone)
+
+  // Haversine distance calculation
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Approximate area calculation
+  const calculateArea = (bounds) => {
+    const latDiff = bounds.north - bounds.south;
+    const lngDiff = bounds.east - bounds.west;
+
+    // Rough approximation: 1 degree ≈ 111 km
+    const latKm = latDiff * 111;
+    const lngKm = lngDiff * 111 * Math.cos((bounds.north + bounds.south) / 2 * Math.PI / 180);
+
+    return Math.abs(latKm * lngKm);
+  };
+
+  // Simple grid-based clustering
+  const performGridClustering = (points, gridSize) => {
+    const clusters = {};
+
+    points.forEach(point => {
+      const gridLat = Math.floor(point.lat / gridSize) * gridSize;
+      const gridLng = Math.floor(point.lng / gridSize) * gridSize;
+      const key = `${gridLat},${gridLng}`;
+
+      if (!clusters[key]) {
+        clusters[key] = {
+          lat: gridLat,
+          lng: gridLng,
+          count: 0,
+          totalValue: 0,
+          points: []
+        };
+      }
+
+      clusters[key].count++;
+      clusters[key].totalValue += point.value;
+      clusters[key].points.push(point);
+    });
+
+    return Object.values(clusters).map(cluster => ({
+      ...cluster,
+      avgValue: cluster.totalValue / cluster.count
+    }));
+  };
+
+  // Simple outlier detection based on distance from center
+  const detectOutliers = (points, center) => {
+    const distances = points.map(point => ({
+      ...point,
+      distance: calculateDistance(center.lat, center.lng, point.lat, point.lng)
+    }));
+
+    // Sort by distance and take top 5% as outliers
+    distances.sort((a, b) => b.distance - a.distance);
+    const outlierCount = Math.max(1, Math.floor(points.length * 0.05));
+
+    return distances.slice(0, outlierCount);
+  };
+
   // Process and analyze geospatial data
   const analysis = useMemo(() => {
     if (!data || !latColumn || !lngColumn) return null;
@@ -115,74 +186,6 @@ const GeospatialStats = ({
       outliers
     };
   }, [data, latColumn, lngColumn, valueColumn, categoryColumn]);
-
-  // Haversine distance calculation
-  const calculateDistance = (lat1, lng1, lat2, lng2) => {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
-
-  // Approximate area calculation
-  const calculateArea = (bounds) => {
-    const latDiff = bounds.north - bounds.south;
-    const lngDiff = bounds.east - bounds.west;
-    
-    // Rough approximation: 1 degree ≈ 111 km
-    const latKm = latDiff * 111;
-    const lngKm = lngDiff * 111 * Math.cos((bounds.north + bounds.south) / 2 * Math.PI / 180);
-    
-    return Math.abs(latKm * lngKm);
-  };
-
-  // Simple grid-based clustering
-  const performGridClustering = (points, gridSize) => {
-    const clusters = {};
-    
-    points.forEach(point => {
-      const gridLat = Math.floor(point.lat / gridSize) * gridSize;
-      const gridLng = Math.floor(point.lng / gridSize) * gridSize;
-      const key = `${gridLat},${gridLng}`;
-      
-      if (!clusters[key]) {
-        clusters[key] = {
-          lat: gridLat,
-          lng: gridLng,
-          count: 0,
-          totalValue: 0,
-          points: []
-        };
-      }
-      
-      clusters[key].count++;
-      clusters[key].totalValue += point.value;
-      clusters[key].points.push(point);
-    });
-
-    return Object.values(clusters).map(cluster => ({
-      ...cluster,
-      avgValue: cluster.totalValue / cluster.count
-    }));
-  };
-
-  // Simple outlier detection based on distance from center
-  const detectOutliers = (points, center) => {
-    const distances = points.map(point => ({
-      ...point,
-      distance: calculateDistance(center.lat, center.lng, point.lat, point.lng)
-    }));
-
-    const avgDistance = distances.reduce((sum, p) => sum + p.distance, 0) / distances.length;
-    const threshold = avgDistance * 2; // Points more than 2x average distance
-
-    return distances.filter(point => point.distance > threshold);
-  };
 
   // Prepare chart data
   const categoryChartData = analysis ? Object.entries(analysis.categoryStats).map(([category, stats]) => ({

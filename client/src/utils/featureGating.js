@@ -84,6 +84,64 @@ export const FEATURES = {
     enabled: true
   },
 
+  // Geospatial Features
+  GEOSPATIAL_PREVIEW: {
+    id: 'geospatial_preview',
+    name: 'Geospatial Map Preview',
+    description: 'Static preview of geographic data with limited data points',
+    category: 'Geospatial',
+    tier: 'free',
+    enabled: true
+  },
+  GEOSPATIAL_INTERACTIVE: {
+    id: 'geospatial_interactive',
+    name: 'Interactive Geospatial Maps',
+    description: 'Full interactive maps with zoom, pan, and layer controls',
+    category: 'Geospatial',
+    tier: 'premium',
+    enabled: true
+  },
+  GEOSPATIAL_CLUSTERING: {
+    id: 'geospatial_clustering',
+    name: 'Map Data Clustering',
+    description: 'Smart clustering of geographic data points',
+    category: 'Geospatial',
+    tier: 'premium',
+    enabled: true
+  },
+  GEOSPATIAL_HEATMAPS: {
+    id: 'geospatial_heatmaps',
+    name: 'Geographic Heatmaps',
+    description: 'Intensity-based heatmap visualizations',
+    category: 'Geospatial',
+    tier: 'premium',
+    enabled: true
+  },
+  GEOSPATIAL_ROUTE_ANALYSIS: {
+    id: 'geospatial_route_analysis',
+    name: 'GPS Route Analysis',
+    description: 'Analyze GPS tracks and movement patterns',
+    category: 'Geospatial',
+    tier: 'premium',
+    enabled: true
+  },
+  GEOSPATIAL_EXPORT: {
+    id: 'geospatial_export',
+    name: 'Geospatial Export',
+    description: 'Export maps as high-quality images and PDFs',
+    category: 'Geospatial',
+    tier: 'premium',
+    enabled: true
+  },
+  GEOSPATIAL_FULL_DATASET: {
+    id: 'geospatial_full_dataset',
+    name: 'Full Dataset Visualization',
+    description: 'Visualize complete datasets without point limitations',
+    category: 'Geospatial',
+    tier: 'premium',
+    enabled: true
+  },
+
   // Export Features
   CHART_EXPORT_PNG: {
     id: 'chart_export_png',
@@ -347,12 +405,14 @@ export const SUBSCRIPTION_TIERS = {
     name: 'Visitor',
     features: [
       'csv_upload', 'basic_charts', 'data_preview', 'dashboard_access',
-      'file_upload', 'chart_export_png', 'data_export_csv', 'user_profiles', 'basic_support'
+      'file_upload', 'chart_export_png', 'data_export_csv', 'user_profiles', 'basic_support',
+      'geospatial_preview'
     ],
     limits: {
       files: 3,
       storage: 5 * 1024 * 1024, // 5MB
-      exports: 5
+      exports: 5,
+      geospatialPoints: 10 // Limited to 10 points for preview
     }
   },
   free: {
@@ -360,12 +420,13 @@ export const SUBSCRIPTION_TIERS = {
     features: [
       'csv_upload', 'basic_charts', 'data_preview', 'dashboard_access',
       'file_upload', 'chart_export_png', 'data_export_csv', 'user_profiles',
-      'basic_storage', 'basic_support'
+      'basic_storage', 'basic_support', 'geospatial_preview'
     ],
     limits: {
       files: 5,
       storage: 10 * 1024 * 1024, // 10MB
-      exports: 10
+      exports: 10,
+      geospatialPoints: 25 // Limited to 25 points for preview
     }
   },
   pro: {
@@ -375,6 +436,9 @@ export const SUBSCRIPTION_TIERS = {
       'csv_upload', 'tsv_upload', 'excel_upload', 'json_upload', 'xml_upload', 'txt_upload',
       // Visualizations
       'basic_charts', 'advanced_charts', 'custom_styling',
+      // Geospatial
+      'geospatial_preview', 'geospatial_interactive', 'geospatial_clustering',
+      'geospatial_heatmaps', 'geospatial_route_analysis', 'geospatial_export', 'geospatial_full_dataset',
       // Export
       'chart_export_png', 'chart_export_jpg', 'chart_export_pdf', 'data_export_csv', 'data_export_excel',
       // Data Processing
@@ -393,7 +457,8 @@ export const SUBSCRIPTION_TIERS = {
     limits: {
       files: -1, // unlimited
       storage: 100 * 1024 * 1024, // 100MB
-      exports: 100
+      exports: 100,
+      geospatialPoints: -1 // unlimited
     }
   },
   enterprise: {
@@ -401,19 +466,31 @@ export const SUBSCRIPTION_TIERS = {
     features: [
       // All features available for enterprise
       'csv_upload', 'tsv_upload', 'excel_upload', 'json_upload', 'xml_upload', 'txt_upload',
-      'google_sheets', 'basic_charts', 'advanced_charts', 'custom_styling', 'chart_export_png',
-      'chart_export_jpg', 'chart_export_pdf', 'chart_export_svg', 'data_export_csv',
-      'data_export_excel', 'data_export_json', 'data_preview', 'column_analysis',
-      'data_cleaning', 'dashboard_access', 'dashboard_customization', 'file_upload',
-      'file_sharing', 'file_versioning', 'extended_storage', 'user_profiles',
-      'team_management', 'basic_support', 'priority_support', 'api_access',
+      'google_sheets', 'basic_charts', 'advanced_charts', 'custom_styling',
+      // Geospatial
+      'geospatial_preview', 'geospatial_interactive', 'geospatial_clustering',
+      'geospatial_heatmaps', 'geospatial_route_analysis', 'geospatial_export', 'geospatial_full_dataset',
+      // Export
+      'chart_export_png', 'chart_export_jpg', 'chart_export_pdf', 'chart_export_svg',
+      'data_export_csv', 'data_export_excel', 'data_export_json',
+      // Data Processing
+      'data_preview', 'column_analysis', 'data_cleaning',
+      // Dashboard
+      'dashboard_access', 'dashboard_customization',
+      // File Management
+      'file_upload', 'file_sharing', 'file_versioning', 'extended_storage',
+      // User Management
+      'user_profiles', 'team_management',
+      // Support & Advanced
+      'basic_support', 'priority_support', 'api_access',
       'white_labeling', 'custom_integrations', 'advanced_analytics', 'audit_logs',
       'sso_integration', 'custom_branding'
     ],
     limits: {
       files: -1, // unlimited
       storage: 1024 * 1024 * 1024, // 1GB
-      exports: -1 // unlimited
+      exports: -1, // unlimited
+      geospatialPoints: -1 // unlimited
     }
   }
 };

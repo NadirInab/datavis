@@ -101,11 +101,9 @@ const authorize = (...roles) => {
 const checkSubscriptionLimits = (limitType) => {
   return async (req, res, next) => {
     try {
+      // Skip subscription checks for visitors - they have their own limits
       if (!req.user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication required'
-        });
+        return next();
       }
 
       const user = req.user;
@@ -135,12 +133,26 @@ const checkSubscriptionLimits = (limitType) => {
       // Check specific limit type
       switch (limitType) {
         case 'files':
+          // First check permanent upload limit (applies to all users)
+          if (user.hasReachedPermanentUploadLimit && user.hasReachedPermanentUploadLimit()) {
+            return res.status(403).json({
+              success: false,
+              message: `Permanent upload limit reached. You have used all 5 lifetime uploads. Deletion does not restore upload capacity.`,
+              limitType: 'permanent',
+              permanentLimit: 5,
+              totalUploadsCount: user.fileUsage?.totalUploadsCount || 0,
+              isPermanentLimit: true
+            });
+          }
+
+          // Then check subscription-based current file limit
           if (user.filesCount >= userLimits.files) {
             return res.status(403).json({
               success: false,
               message: `File limit reached. Upgrade your subscription to upload more files.`,
               limit: userLimits.files,
-              current: user.filesCount
+              current: user.filesCount,
+              limitType: 'subscription'
             });
           }
           break;
@@ -211,19 +223,30 @@ const trackVisitor = async (req, res, next) => {
     });
 
     if (!visitor) {
-      visitor = new User({
-        firebaseUid: `visitor_${sessionId}`,
-        email: `visitor_${sessionId}@temp.local`,
-        name: 'Visitor',
-        role: 'visitor',
-        isActive: true,
-        visitorSession: {
-          sessionId,
-          filesUploaded: 0,
-          lastActivity: new Date()
+      try {
+        visitor = new User({
+          firebaseUid: `visitor_${sessionId}`,
+          email: `visitor_${sessionId}@temp.local`,
+          name: 'Visitor',
+          role: 'visitor',
+          isActive: true,
+          visitorSession: {
+            sessionId,
+            filesUploaded: 0,
+            lastActivity: new Date()
+          }
+        });
+        await visitor.save();
+      } catch (error) {
+        // If duplicate key error, try to find the existing visitor
+        if (error.code === 11000) {
+          visitor = await User.findOne({
+            firebaseUid: `visitor_${sessionId}`
+          });
+        } else {
+          throw error;
         }
-      });
-      await visitor.save();
+      }
     } else {
       // Update last activity
       visitor.visitorSession.lastActivity = new Date();
@@ -327,10 +350,53 @@ const checkVisitorLimits = async (req, res, next) => {
   }
 };
 
+// Check permanent upload limits (applies to all authenticated users)
+const checkPermanentUploadLimit = async (req, res, next) => {
+  try {
+    // Skip if user is not authenticated
+    if (!req.user) {
+      return next();
+    }
+
+    const user = req.user;
+
+    // Check if user has reached permanent upload limit
+    if (user.hasReachedPermanentUploadLimit && user.hasReachedPermanentUploadLimit()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Permanent upload limit reached. You have used all 5 lifetime uploads.',
+        details: 'Deleting files does not restore upload capacity. This limit prevents abuse of the free service.',
+        limitType: 'permanent',
+        permanentLimit: 5,
+        totalUploadsCount: user.fileUsage?.totalUploadsCount || 0,
+        isPermanentLimit: true,
+        upgradeRequired: false // This is a hard limit, not subscription-based
+      });
+    }
+
+    // Add upload limit info to request for use in responses
+    req.uploadLimitInfo = user.uploadLimitInfo || {
+      totalUploadsCount: user.fileUsage?.totalUploadsCount || 0,
+      permanentLimit: 5,
+      remainingUploads: Math.max(0, 5 - (user.fileUsage?.totalUploadsCount || 0)),
+      hasReachedLimit: (user.fileUsage?.totalUploadsCount || 0) >= 5
+    };
+
+    next();
+  } catch (error) {
+    logger.error('Permanent upload limit check error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error checking upload limits'
+    });
+  }
+};
+
 module.exports = {
   protect,
   authorize,
   checkSubscriptionLimits,
+  checkPermanentUploadLimit,
   trackVisitor,
   optionalAuth,
   checkVisitorLimits
