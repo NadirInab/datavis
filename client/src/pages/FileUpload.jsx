@@ -670,23 +670,31 @@ const FileUpload = () => {
           throw new Error(uploadResponse.message || 'Upload failed');
         }
 
+        // Validate backend response
+        if (!uploadResponse || !uploadResponse.success) {
+          throw new Error(`Backend upload failed: ${uploadResponse?.message || 'Unknown error'}`);
+        }
+
+        if (!uploadResponse.file || !uploadResponse.file.id) {
+          throw new Error('Backend response missing file ID');
+        }
+
         // Use the file ID from the backend response
-        const uploadedFileId = uploadResponse.file?._id || uploadResponse.file?.id || uploadResponse.data?.file?._id || uploadResponse.data?.fileId || tempFileId;
+        const uploadedFileId = uploadResponse.file.id || uploadResponse.file._id;
+
+        // Validate that we got a proper MongoDB ObjectId (24 character hex string)
+        const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+        if (!objectIdRegex.test(uploadedFileId)) {
+          throw new Error(`Invalid file ID format from backend: ${uploadedFileId}`);
+        }
 
         console.log('✅ File uploaded successfully to backend:', {
           fileId: uploadedFileId,
-          fileName: uploadResponse.file?.filename || uploadResponse.data?.file?.filename,
-          status: uploadResponse.file?.status || uploadResponse.data?.file?.status,
-          originalTempId: tempFileId,
+          fileName: uploadResponse.file.filename,
+          status: uploadResponse.file.status,
+          isValidObjectId: objectIdRegex.test(uploadedFileId),
           backendResponse: uploadResponse
         });
-
-        // Verify we got a proper ObjectId from backend
-        if (uploadedFileId === tempFileId) {
-          console.warn('⚠️ Using temporary ID - backend may not have returned proper file ID');
-        } else {
-          console.log('✅ Using backend ObjectId for navigation:', uploadedFileId);
-        }
 
         // Update fileRecord with backend data
         fileRecord.id = uploadedFileId;
@@ -695,7 +703,7 @@ const FileUpload = () => {
         // Update the fileId variable for navigation
         fileId = uploadedFileId;
 
-        console.log('🧭 Navigation will use file ID:', fileId);
+        console.log('🧭 Navigation will use MongoDB ObjectId:', fileId);
 
       } catch (uploadError) {
         console.error('🚨 API upload failed:', {
@@ -722,23 +730,15 @@ const FileUpload = () => {
           message: uploadError.message,
           status: uploadError.response?.status,
           statusText: uploadError.response?.statusText,
-          responseData: uploadError.response?.data
+          responseData: uploadError.response?.data,
+          hasAuth: !!uploadError.config?.headers?.Authorization,
+          url: uploadError.config?.url
         });
 
-        // For authenticated users, STOP here - don't use localStorage
-        if (currentUser) {
-          setError(`❌ Upload failed: ${uploadError.message}. Please try again or contact support.`);
-          setLoading(false);
-          return;
-        }
-
-        // Only for visitors - temporary localStorage fallback
-        console.warn('⚠️ Visitor fallback to localStorage - file will have timestamp ID:', tempFileId);
-        const userId = localStorage.getItem('sessionId') || 'visitor-session';
-        const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
-        localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
-
-        setError(`⚠️ Upload failed: ${uploadError.message}. File saved locally but will not persist.`);
+        // NO FALLBACK TO LOCALSTORAGE - Force proper backend upload
+        setError(`❌ Upload failed: ${uploadError.message}. Please check your connection and try again.`);
+        setLoading(false);
+        return;
       }
 
       // Record upload for metrics

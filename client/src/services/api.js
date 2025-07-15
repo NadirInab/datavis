@@ -1,11 +1,14 @@
 // API service for backend communication
 import axios from 'axios';
 
-// API base configuration
-if (!import.meta.env.VITE_API_BASE_URL) {
-  throw new Error('VITE_API_BASE_URL is not defined');
+// API base configuration with fallback
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://datavis-cc2x.onrender.com/api/v1';
+
+console.log('🌐 API Base URL:', API_BASE_URL);
+
+if (!API_BASE_URL) {
+  throw new Error('API_BASE_URL could not be determined');
 }
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Request throttling cache
 const requestCache = new Map();
@@ -35,18 +38,30 @@ api.interceptors.request.use(
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    try {
+      // Get Firebase auth token
+      const { getAuth } = await import('firebase/auth');
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (user) {
+        const token = await user.getIdToken();
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log('🔑 Added Firebase token to request');
+      } else {
+        console.log('👤 No authenticated user for request');
+      }
+    } catch (authError) {
+      console.warn('⚠️ Failed to get Firebase token:', authError.message);
     }
-    
+
     // Add session ID for visitor tracking
     const sessionId = localStorage.getItem('sessionId');
     if (sessionId) {
       config.headers['x-session-id'] = sessionId;
     }
-    
+
     return config;
   },
   (error) => {
@@ -234,6 +249,9 @@ export const fileAPI = {
   // Upload file
   uploadFile: async (formData, onProgress) => {
     try {
+      console.log('📤 Starting file upload API call...');
+      console.log('🌐 Upload URL:', `${API_BASE_URL}/files/upload`);
+
       const response = await api.post('/files/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -247,8 +265,23 @@ export const fileAPI = {
           }
         },
       });
+
+      console.log('✅ Upload API response:', {
+        status: response.status,
+        success: response.data?.success,
+        fileId: response.data?.file?.id || response.data?.file?._id,
+        hasFile: !!response.data?.file
+      });
+
       return response.data;
     } catch (error) {
+      console.error('🚨 Upload API error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        message: error.response?.data?.message || error.message,
+        url: error.config?.url,
+        hasAuth: !!error.config?.headers?.Authorization
+      });
       throw error.response?.data || error;
     }
   },
