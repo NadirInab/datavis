@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/FirebaseAuthContext';
+import { fileAPI, userAPI } from '../services/api';
 import ExportMenu from '../components/ExportMenu';
 import Button, { Icons, ButtonGroup } from '../components/ui/Button';
 import { ChartCard } from '../components/ui/Card';
@@ -65,7 +66,7 @@ const Visualize = () => {
   ];
   
   useEffect(() => {
-    // Load file data from localStorage
+    // Load file data from API
     const loadFile = async () => {
       // Allow visitors to access visualizations
       if (!currentUser && !isVisitor()) return;
@@ -73,20 +74,75 @@ const Visualize = () => {
       setLoading(true);
 
       try {
-        // Simulate loading delay for better UX
-        await new Promise(resolve => setTimeout(resolve, 600));
+        let fileData = null;
 
-        const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
-        const filesData = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
-        const fileData = filesData.find(f => f.id === fileId);
+        // Try to get file from API first
+        try {
+          if (currentUser) {
+            // Authenticated user - get file from API
+            const response = await fileAPI.getFile(fileId);
+            if (response.success && response.file) {
+              // Transform backend file format to frontend format
+              fileData = {
+                id: response.file._id,
+                _id: response.file._id,
+                name: response.file.filename,
+                size: response.file.size,
+                type: response.file.mimetype,
+                format: response.file.dataInfo?.headers ? 'csv' : 'unknown',
+                uploadedAt: response.file.uploadedAt,
+                rows: response.file.dataInfo?.rows || 0,
+                columns: response.file.dataInfo?.headers || [],
+                columnCount: response.file.dataInfo?.columns || 0,
+                columnTypes: response.file.dataInfo?.statistics || {},
+                visualizations: response.file.visualizations || [],
+                data: response.file.data || []
+              };
+            }
+          } else if (isVisitor()) {
+            // Visitor - try API first, then fallback to localStorage
+            try {
+              const response = await fileAPI.getFile(fileId);
+              if (response.success && response.file) {
+                // Transform backend file format to frontend format
+                fileData = {
+                  id: response.file._id,
+                  _id: response.file._id,
+                  name: response.file.filename,
+                  size: response.file.size,
+                  type: response.file.mimetype,
+                  format: response.file.dataInfo?.headers ? 'csv' : 'unknown',
+                  uploadedAt: response.file.uploadedAt,
+                  rows: response.file.dataInfo?.rows || 0,
+                  columns: response.file.dataInfo?.headers || [],
+                  columnCount: response.file.dataInfo?.columns || 0,
+                  columnTypes: response.file.dataInfo?.statistics || {},
+                  visualizations: response.file.visualizations || [],
+                  data: response.file.data || []
+                };
+              }
+            } catch (apiError) {
+              // Fallback to localStorage for visitors
+              const userId = localStorage.getItem('sessionId') || 'visitor-session';
+              const filesData = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
+              fileData = filesData.find(f => f.id === fileId || f._id === fileId);
+            }
+          }
+        } catch (apiError) {
+          console.warn('API call failed, trying localStorage fallback:', apiError);
+
+          // Fallback to localStorage
+          const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
+          const filesData = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
+          fileData = filesData.find(f => f.id === fileId || f._id === fileId);
+        }
 
         console.log('Visualize Debug:', {
           fileId,
-          userId,
-          filesCount: filesData.length,
           fileFound: !!fileData,
           isVisitorUser: isVisitor(),
-          currentUserExists: !!currentUser
+          currentUserExists: !!currentUser,
+          fileDataSource: fileData ? 'API or localStorage' : 'none'
         });
 
         if (!fileData) {

@@ -26,6 +26,16 @@ const uploadFile = async (req, res) => {
     const visitor = req.visitor;
     const sessionId = req.sessionId;
 
+    // Parse metadata if provided
+    let clientMetadata = {};
+    if (req.body.metadata) {
+      try {
+        clientMetadata = JSON.parse(req.body.metadata);
+      } catch (error) {
+        logger.warn('Failed to parse client metadata:', error);
+      }
+    }
+
     // Determine owner information
     const ownerType = user ? 'user' : 'visitor';
     const ownerUid = user ? user.firebaseUid : sessionId;
@@ -101,6 +111,11 @@ const uploadFile = async (req, res) => {
       // Store processed data (limit size for database storage)
       const maxDataRows = user?.subscription?.tier === 'enterprise' ? 10000 : 1000;
       fileRecord.data = parseResult.data.slice(0, maxDataRows);
+
+      // Add visualizations from client metadata if provided
+      if (clientMetadata.visualizations && Array.isArray(clientMetadata.visualizations)) {
+        fileRecord.visualizations = clientMetadata.visualizations;
+      }
       
       fileRecord.status = FILE_STATUS.READY;
       fileRecord.processingProgress = 100;

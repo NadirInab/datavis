@@ -584,9 +584,11 @@ const FileUpload = () => {
 
       const recommendedVisualizations = recommendVisualizations(parsedData.data, parsedData.columnAnalysis);
 
-      const fileId = Date.now().toString();
+      // Generate temporary ID for frontend use, will be replaced by backend ID
+      const tempFileId = Date.now().toString();
+      let fileId = tempFileId; // Use let so it can be reassigned with backend ID
       const fileRecord = {
-        id: fileId,
+        id: tempFileId,
         name: file.name,
         size: file.size,
         type: file.type,
@@ -623,13 +625,16 @@ const FileUpload = () => {
         }
 
         // Use the file ID from the backend response
-        const uploadedFileId = uploadResponse.data?.file?._id || uploadResponse.data?.fileId || fileId;
+        const uploadedFileId = uploadResponse.data?.file?._id || uploadResponse.data?.fileId || tempFileId;
 
         console.log('File uploaded successfully:', uploadResponse.data);
 
         // Update fileRecord with backend data
         fileRecord.id = uploadedFileId;
         fileRecord._id = uploadedFileId;
+
+        // Update the fileId variable for navigation
+        fileId = uploadedFileId;
 
       } catch (uploadError) {
         console.error('API upload failed, falling back to localStorage:', uploadError);
