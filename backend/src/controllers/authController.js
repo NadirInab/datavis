@@ -1,6 +1,7 @@
 const { verifyIdToken, setCustomUserClaims, getUserByUid } = require('../config/firebase');
 const User = require('../models/User');
 const { UsageTracking } = require('../models/UsageTracking');
+const userCreationService = require('../services/userCreationService');
 const logger = require('../utils/logger');
 const { USER_ROLES, SUBSCRIPTION_TIERS } = require('../utils/constants');
 
@@ -21,53 +22,15 @@ const verifyToken = async (req, res) => {
     // Verify Firebase ID token
     const decodedToken = await verifyIdToken(idToken);
 
-    // Get or create user
-    let user = await User.findOne({ firebaseUid: decodedToken.uid });
+    // Use enhanced user creation service for Google OAuth users
+    const userCreationResult = await userCreationService.createOrUpdateGoogleUser(decodedToken);
+    const user = userCreationResult.user;
 
-    if (!user) {
-      // Create new user
-      user = new User({
-        firebaseUid: decodedToken.uid,
-        email: decodedToken.email,
-        name: decodedToken.name || decodedToken.email.split('@')[0],
-        photoURL: decodedToken.picture || null,
-        isEmailVerified: decodedToken.email_verified || false,
-        role: USER_ROLES.USER,
-        subscription: {
-          tier: SUBSCRIPTION_TIERS.FREE,
-          status: 'active'
-        }
-      });
-
-      await user.save();
-
-      // Set custom claims in Firebase
-      await setCustomUserClaims(decodedToken.uid, {
-        role: user.role,
-        subscriptionTier: user.subscription.tier
-      });
-
-      // Record user registration event
-      await UsageTracking.recordEvent(user.firebaseUid, 'user_registered', {
-        email: user.email,
-        provider: decodedToken.firebase.sign_in_provider
-      });
-
-      logger.info(`New user registered: ${user.email}`);
+    // Log creation/update details
+    if (userCreationResult.isNewUser) {
+      logger.info(`New Google user created: ${user.email} (${userCreationResult.processingTime}ms)`);
     } else {
-      // Update existing user info
-      user.name = decodedToken.name || user.name;
-      user.photoURL = decodedToken.picture || user.photoURL;
-      user.isEmailVerified = decodedToken.email_verified || user.isEmailVerified;
-      user.lastLoginAt = new Date();
-      user.lastActivityAt = new Date();
-
-      await user.save();
-
-      // Record login event
-      await UsageTracking.recordEvent(user.firebaseUid, 'user_login', {
-        provider: decodedToken.firebase.sign_in_provider
-      });
+      logger.info(`Existing Google user updated: ${user.email} (${userCreationResult.processingTime}ms)`);
     }
 
     res.status(200).json({

@@ -9,6 +9,8 @@ import DatabaseManagerTest from '../../components/admin/DatabaseManagerTest';
 import AdminTest from '../../components/admin/AdminTest';
 import FeatureManagement from '../../components/admin/FeatureManagement';
 import UsageAnalytics from '../../components/admin/UsageAnalytics';
+import MigrationManager from '../../components/admin/MigrationManager';
+import GoogleUserVerification from '../../components/admin/GoogleUserVerification';
 import RoleBasedTester from '../../components/testing/RoleBasedTester';
 import ComprehensiveAudit from '../../components/testing/ComprehensiveAudit';
 import ComprehensiveAuthAudit from '../../components/testing/ComprehensiveAuthAudit';
@@ -45,7 +47,9 @@ const AdminDashboard = () => {
     { id: 'users', name: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z' },
     { id: 'payments', name: 'Payments', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
     { id: 'system', name: 'System', icon: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z' },
-    { id: 'database', name: 'Database', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4' }
+    { id: 'database', name: 'Database', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4' },
+    { id: 'migrations', name: 'Migrations', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' },
+    { id: 'google-users', name: 'Google Users', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z' }
   ];
 
   const renderTabContent = () => {
@@ -72,6 +76,10 @@ const AdminDashboard = () => {
         return <SystemMonitoring />;
       case 'database':
         return <DatabaseManagerTest />;
+      case 'migrations':
+        return <MigrationManager />;
+      case 'google-users':
+        return <GoogleUserVerification />;
       default:
         return <ComprehensiveAuthAudit />;
     }

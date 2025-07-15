@@ -21,6 +21,9 @@ const {
 
 const { protect, authorize } = require('../middleware/auth');
 
+// Import migration routes
+const migrationRoutes = require('./migrations');
+
 // Enable authentication middleware for production
 router.use(protect);
 router.use(authorize('admin', 'super_admin'));
@@ -63,6 +66,9 @@ router.get('/health', (req, res) => {
     } : null
   });
 });
+
+// Migration management routes
+router.use('/migrations', migrationRoutes);
 
 module.exports = router;
 
