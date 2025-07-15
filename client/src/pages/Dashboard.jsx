@@ -7,6 +7,7 @@ import { ChartCard, FileCard } from '../components/ui/Card';
 import { CardSkeleton, FileListSkeleton } from '../components/loading/SkeletonLoader';
 import VisitorBanner from '../components/visitor/VisitorBanner';
 import { getGuestMetrics, getUserMetrics } from '../utils/rateLimiting';
+import { userAPI } from '../services/api';
 
 // Define Icons if not imported from Button
 const Icons = {
@@ -44,18 +45,6 @@ const Dashboard = () => {
     const loadUserData = async () => {
       setLoading(true);
       try {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        let metrics;
-        if (typeof isVisitor !== 'function' || typeof getGuestMetrics !== 'function' || typeof getUserMetrics !== 'function') {
-          setStats({
-            totalFiles: 0,
-            totalVisualizations: 0,
-            lastUpload: null,
-            favoriteChartType: 'None',
-          });
-          setRecentFiles([]);
-          return;
-        }
         if (!currentUser && !isVisitor()) {
           setStats({
             totalFiles: 0,
@@ -66,43 +55,96 @@ const Dashboard = () => {
           setRecentFiles([]);
           return;
         }
-        if (!currentUser || isVisitor()) {
-          metrics = getGuestMetrics();
-        } else {
-          metrics = getUserMetrics(currentUser);
-        }
-        // For admin: placeholder for global metrics (future-proof)
-        // if (isAdmin()) { metrics = getAdminMetrics() || getUserMetrics(currentUser); }
-        setStats({
-          totalFiles: Number(metrics?.filesUploaded) || 0,
-          totalVisualizations: Array.isArray(metrics?.uploadHistory)
-            ? metrics.uploadHistory.reduce((acc, file) => acc + (Array.isArray(file?.visualizations) ? file.visualizations.length : 0), 0)
-            : 0,
-          lastUpload: metrics?.lastUpload ? new Date(metrics.lastUpload) : null,
-          favoriteChartType: (() => {
-            const chartCounts = {};
-            if (Array.isArray(metrics?.uploadHistory)) {
-              metrics.uploadHistory.forEach(file => {
-                (Array.isArray(file?.visualizations) ? file.visualizations : []).forEach(viz => {
-                  if (viz?.type) {
-                    chartCounts[viz.type] = (chartCounts[viz.type] || 0) + 1;
-                  }
-                });
+
+        if (currentUser) {
+          // Authenticated user - fetch dashboard data from API
+          try {
+            const dashboardResponse = await userAPI.getDashboard();
+            if (dashboardResponse.success && dashboardResponse.data) {
+              const { stats, recentFiles } = dashboardResponse.data;
+              setStats({
+                totalFiles: stats.totalFiles || 0,
+                totalVisualizations: stats.visualizationsCreated || 0,
+                lastUpload: recentFiles && recentFiles.length > 0 ? recentFiles[0].uploadedAt : null,
+                favoriteChartType: 'Chart', // TODO: Calculate from data
               });
+              setRecentFiles(recentFiles || []);
+            } else {
+              // Fallback to default values
+              setStats({
+                totalFiles: 0,
+                totalVisualizations: 0,
+                lastUpload: null,
+                favoriteChartType: 'None',
+              });
+              setRecentFiles([]);
             }
-            return Object.keys(chartCounts).length > 0
-              ? Object.keys(chartCounts).reduce((a, b) => chartCounts[a] > chartCounts[b] ? a : b)
-              : 'None';
-          })(),
+          } catch (error) {
+            console.error('Error loading dashboard data:', error);
+            // Fallback to localStorage-based metrics for authenticated users
+            const metrics = getUserMetrics(currentUser);
+            setStats({
+              totalFiles: Number(metrics?.filesUploaded) || 0,
+              totalVisualizations: Array.isArray(metrics?.uploadHistory)
+                ? metrics.uploadHistory.reduce((acc, file) => acc + (Array.isArray(file?.visualizations) ? file.visualizations.length : 0), 0)
+                : 0,
+              lastUpload: Array.isArray(metrics?.uploadHistory) && metrics.uploadHistory.length > 0
+                ? metrics.uploadHistory[0]?.uploadedAt || metrics.uploadHistory[0]?.timestamp
+                : null,
+              favoriteChartType: 'None',
+            });
+            setRecentFiles(
+              Array.isArray(metrics?.uploadHistory)
+                ? [...metrics.uploadHistory]
+                    .filter(f => f && (f.id || f._id))
+                    .sort((a, b) => (b.uploadedAt || b.timestamp || 0) - (a.uploadedAt || a.timestamp || 0))
+                    .slice(0, 5)
+                : []
+            );
+          }
+        } else if (isVisitor()) {
+          // Visitor - use localStorage-based metrics
+          const metrics = getGuestMetrics();
+          setStats({
+            totalFiles: Number(metrics?.filesUploaded) || 0,
+            totalVisualizations: Array.isArray(metrics?.uploadHistory)
+              ? metrics.uploadHistory.reduce((acc, file) => acc + (Array.isArray(file?.visualizations) ? file.visualizations.length : 0), 0)
+              : 0,
+            lastUpload: metrics?.lastUpload ? new Date(metrics.lastUpload) : null,
+            favoriteChartType: (() => {
+              const chartCounts = {};
+              if (Array.isArray(metrics?.uploadHistory)) {
+                metrics.uploadHistory.forEach(file => {
+                  (Array.isArray(file?.visualizations) ? file.visualizations : []).forEach(viz => {
+                    if (viz?.type) {
+                      chartCounts[viz.type] = (chartCounts[viz.type] || 0) + 1;
+                    }
+                  });
+                });
+              }
+              return Object.keys(chartCounts).length > 0
+                ? Object.keys(chartCounts).reduce((a, b) => chartCounts[a] > chartCounts[b] ? a : b)
+                : 'None';
+            })(),
+          });
+          setRecentFiles(
+            Array.isArray(metrics?.uploadHistory)
+              ? [...metrics.uploadHistory]
+                  .filter(f => f && (f.id || f._id))
+                  .sort((a, b) => (b.uploadedAt || b.timestamp || 0) - (a.uploadedAt || a.timestamp || 0))
+                  .slice(0, 5)
+              : []
+          );
+        }
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        setStats({
+          totalFiles: 0,
+          totalVisualizations: 0,
+          lastUpload: null,
+          favoriteChartType: 'None',
         });
-        setRecentFiles(
-          Array.isArray(metrics?.uploadHistory)
-            ? [...metrics.uploadHistory]
-                .filter(f => f && (f.id || f._id))
-                .sort((a, b) => (b.uploadedAt || b.timestamp || 0) - (a.uploadedAt || a.timestamp || 0))
-                .slice(0, 5)
-            : []
-        );
+        setRecentFiles([]);
       } finally {
         setLoading(false);
       }

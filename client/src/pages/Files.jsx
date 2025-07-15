@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/FirebaseAuthContext';
+import { fileAPI, userAPI } from '../services/api';
 
 const Files = () => {
   const auth = useAuth() || {};
@@ -13,33 +14,67 @@ const Files = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadFiles = () => {
-      if (!currentUser && !isVisitor()) {
-        setFiles([]);
-        setLoading(false);
-        return;
-      }
-      // Get files from localStorage - handle visitors and authenticated users
-      const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
-      let filesData = [];
+    const loadFiles = async () => {
+      setLoading(true);
       try {
-        filesData = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
-        if (!Array.isArray(filesData)) filesData = [];
-      } catch {
-        filesData = [];
+        if (!currentUser && !isVisitor()) {
+          setFiles([]);
+          return;
+        }
+
+        if (currentUser) {
+          // Authenticated user - fetch files from API
+          const response = await userAPI.getFiles();
+          if (response.success && response.data && Array.isArray(response.data.files)) {
+            setFiles(response.data.files);
+          } else {
+            setFiles([]);
+          }
+        } else if (isVisitor()) {
+          // Visitor - try to get files from API using session ID
+          try {
+            const response = await userAPI.getFiles();
+            if (response.success && response.data && Array.isArray(response.data.files)) {
+              setFiles(response.data.files);
+            } else {
+              setFiles([]);
+            }
+          } catch (error) {
+            // Fallback to localStorage for visitors if API fails
+            const sessionId = localStorage.getItem('sessionId') || 'visitor-session';
+            let filesData = [];
+            try {
+              filesData = JSON.parse(localStorage.getItem(`files_${sessionId}`) || '[]');
+              if (!Array.isArray(filesData)) filesData = [];
+            } catch {
+              filesData = [];
+            }
+            setFiles(filesData);
+          }
+        } else {
+          setFiles([]);
+        }
+      } catch (error) {
+        console.error('Error loading files:', error);
+        setFiles([]);
+      } finally {
+        setLoading(false);
       }
-      setFiles(filesData);
-      setLoading(false);
     };
+
     loadFiles();
   }, [currentUser, isVisitor]);
 
-  const deleteFile = (fileId) => {
+  const deleteFile = async (fileId) => {
     if (window.confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
-      const updatedFiles = files.filter(file => file?.id !== fileId);
-      const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
-      localStorage.setItem(`files_${userId}`, JSON.stringify(updatedFiles));
-      setFiles(updatedFiles);
+      try {
+        await fileAPI.deleteFile(fileId);
+        // Remove file from local state
+        setFiles(prevFiles => prevFiles.filter(file => file._id !== fileId && file.id !== fileId));
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        alert('Failed to delete file. Please try again.');
+      }
     }
   };
 

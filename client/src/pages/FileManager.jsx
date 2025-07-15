@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/FirebaseAuthContext';
+import { userAPI, fileAPI } from '../services/api';
 import Button, { Icons } from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { TableSkeleton } from '../components/loading/SkeletonLoader';
@@ -20,32 +21,58 @@ const FileManager = () => {
     loadFiles();
   }, [currentUser]);
 
-  const loadFiles = () => {
+  const loadFiles = async () => {
     if (!currentUser) return;
-    
-    // Get files from localStorage
-    const filesData = JSON.parse(localStorage.getItem(`files_${currentUser.id}`) || '[]');
-    setFiles(filesData);
-    setLoading(false);
-  };
 
-  const deleteFile = (fileId) => {
-    if (window.confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
-      const updatedFiles = files.filter(file => file.id !== fileId);
-      localStorage.setItem(`files_${currentUser.id}`, JSON.stringify(updatedFiles));
-      setFiles(updatedFiles);
-      setSelectedFiles(selectedFiles.filter(id => id !== fileId));
+    setLoading(true);
+    try {
+      // Get files from API
+      const response = await userAPI.getFiles();
+      if (response.success && response.data && Array.isArray(response.data.files)) {
+        setFiles(response.data.files);
+      } else {
+        setFiles([]);
+      }
+    } catch (error) {
+      console.error('Error loading files:', error);
+      setFiles([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const deleteSelectedFiles = () => {
+  const deleteFile = async (fileId) => {
+    if (window.confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
+      try {
+        await fileAPI.deleteFile(fileId);
+        // Remove file from local state
+        setFiles(prevFiles => prevFiles.filter(file => file._id !== fileId && file.id !== fileId));
+        setSelectedFiles(selectedFiles.filter(id => id !== fileId));
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        alert('Failed to delete file. Please try again.');
+      }
+    }
+  };
+
+  const deleteSelectedFiles = async () => {
     if (selectedFiles.length === 0) return;
-    
+
     if (window.confirm(`Are you sure you want to delete ${selectedFiles.length} selected files? This action cannot be undone.`)) {
-      const updatedFiles = files.filter(file => !selectedFiles.includes(file.id));
-      localStorage.setItem(`files_${currentUser.id}`, JSON.stringify(updatedFiles));
-      setFiles(updatedFiles);
-      setSelectedFiles([]);
+      try {
+        // Delete files one by one (could be optimized with batch delete API)
+        for (const fileId of selectedFiles) {
+          await fileAPI.deleteFile(fileId);
+        }
+        // Remove files from local state
+        setFiles(prevFiles => prevFiles.filter(file => !selectedFiles.includes(file._id) && !selectedFiles.includes(file.id)));
+        setSelectedFiles([]);
+      } catch (error) {
+        console.error('Error deleting files:', error);
+        alert('Failed to delete some files. Please try again.');
+        // Reload files to get current state
+        loadFiles();
+      }
     }
   };
 

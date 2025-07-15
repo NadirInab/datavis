@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/FirebaseAuthContext';
+import { fileAPI } from '../services/api';
 import Papa from 'papaparse';
 import Button, { Icons } from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -599,9 +600,45 @@ const FileUpload = () => {
         data: parsedData.data.slice(0, 1000)
       };
 
-      const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
-      const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
-      localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
+      // Upload file to backend API instead of localStorage
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('metadata', JSON.stringify({
+          filename: fileRecord.name,
+          size: fileRecord.size,
+          type: fileRecord.type,
+          format: fileRecord.format,
+          rows: fileRecord.rows,
+          columns: fileRecord.columns,
+          columnCount: fileRecord.columnCount,
+          columnTypes: fileRecord.columnTypes,
+          visualizations: fileRecord.visualizations
+        }));
+
+        const uploadResponse = await fileAPI.uploadFile(formData);
+
+        if (!uploadResponse.success) {
+          throw new Error(uploadResponse.message || 'Upload failed');
+        }
+
+        // Use the file ID from the backend response
+        const uploadedFileId = uploadResponse.data?.file?._id || uploadResponse.data?.fileId || fileId;
+
+        console.log('File uploaded successfully:', uploadResponse.data);
+
+        // Update fileRecord with backend data
+        fileRecord.id = uploadedFileId;
+        fileRecord._id = uploadedFileId;
+
+      } catch (uploadError) {
+        console.error('API upload failed, falling back to localStorage:', uploadError);
+
+        // Fallback to localStorage for development/testing
+        const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
+        const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
+        localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
+      }
 
       // Record upload for metrics
       if (isVisitor() || !currentUser) {
