@@ -21,6 +21,7 @@ import MockPaymentPage from "../pages/MockPaymentPage";
 import PaymentSuccessPage from "../pages/PaymentSuccessPage";
 import VisualizationTest from "../pages/VisualizationTest";
 import FingerprintDebug from "../components/debug/FingerprintDebug";
+import GoogleSignInTest from "../components/testing/GoogleSignInTest";
 import NotFound from "../pages/NotFound";
 
 // Import admin components
@@ -86,6 +87,7 @@ const AppRoutes = () => {
       <Route path="/subscription/success" element={<PaymentSuccessPage />} />
       <Route path="/test/visualization" element={<VisualizationTest />} />
       <Route path="/test/landing" element={<LandingPageTest />} />
+      <Route path="/test/google-signin" element={<GoogleSignInTest />} />
       <Route path="/debug/fingerprint" element={<FingerprintDebug />} />
 
       {/* Protected app routes */}
