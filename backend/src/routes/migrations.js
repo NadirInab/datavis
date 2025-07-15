@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { protect, requireAdmin } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const {
   getMigrations,
   executeMigration,
@@ -15,7 +15,7 @@ const {
 } = require('../controllers/migrationController');
 
 // All migration routes require admin access
-router.use(protect, requireAdmin);
+router.use(protect, authorize('admin'));
 
 // @route   GET /api/v1/admin/migrations
 // @desc    Get all migrations with their status
