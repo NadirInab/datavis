@@ -10,6 +10,13 @@ const { USER_ROLES, SUBSCRIPTION_TIERS } = require('../utils/constants');
 // @access  Public
 const verifyToken = async (req, res) => {
   try {
+    console.log('🔍 Auth verification request received:', {
+      hasToken: !!req.body.idToken,
+      tokenLength: req.body.idToken?.length,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     const { idToken } = req.body;
 
     if (!idToken) {
@@ -21,6 +28,11 @@ const verifyToken = async (req, res) => {
 
     // Verify Firebase ID token
     const decodedToken = await verifyIdToken(idToken);
+    console.log('✅ Firebase token verified:', {
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+      provider: decodedToken.firebase?.sign_in_provider
+    });
 
     // Use enhanced user creation service for Google OAuth users
     const userCreationResult = await userCreationService.createOrUpdateGoogleUser(decodedToken);
@@ -28,8 +40,18 @@ const verifyToken = async (req, res) => {
 
     // Log creation/update details
     if (userCreationResult.isNewUser) {
+      console.log('✅ New Google user created:', {
+        userId: user._id,
+        email: user.email,
+        processingTime: userCreationResult.processingTime
+      });
       logger.info(`New Google user created: ${user.email} (${userCreationResult.processingTime}ms)`);
     } else {
+      console.log('✅ Existing Google user updated:', {
+        userId: user._id,
+        email: user.email,
+        processingTime: userCreationResult.processingTime
+      });
       logger.info(`Existing Google user updated: ${user.email} (${userCreationResult.processingTime}ms)`);
     }
 

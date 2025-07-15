@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
 const connectDB = require('./database/connection');
@@ -132,6 +133,18 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV,
     version: process.env.npm_package_version || '1.0.0',
     cors: 'updated'
+  });
+});
+
+// Health check endpoint
+app.get('/api/v1/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    port: process.env.PORT || 5001
   });
 });
 

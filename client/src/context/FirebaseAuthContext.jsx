@@ -289,8 +289,21 @@ export const AuthProvider = ({ children }) => {
       try { visitorId = await fingerprintService.getVisitorId(); } catch {}
 
       // Add abort signal to the request
+      console.log('🔍 Starting user verification:', {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        attempt: attempt,
+        apiUrl: import.meta.env.VITE_API_BASE_URL
+      });
+
+      console.log('🔑 Firebase token obtained, calling backend...');
       const response = await authAPI.verifyToken(idToken, { visitorId, signal: abortControllerRef.current.signal });
       if (response.success) {
+        console.log('✅ Backend verification successful:', {
+          isNewUser: response.data.isNewUser || false,
+          userId: response.data.user.firebaseUid,
+          email: response.data.user.email
+        });
         const userData = response.data.user;
         // Load permanent upload counter from localStorage (temporary until backend is implemented)
         const storedFileUsage = localStorage.getItem('user_upload_data');
@@ -358,9 +371,15 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      if (import.meta.env.DEV) {
-        console.error('Authentication sync failed:', error);
-      }
+      console.error('🚨 Authentication sync failed:', {
+        error: error.message,
+        stack: error.stack,
+        attempt: attempt,
+        uid: firebaseUser?.uid,
+        email: firebaseUser?.email,
+        apiUrl: import.meta.env.VITE_API_BASE_URL,
+        isDev: import.meta.env.DEV
+      });
 
       setAuthError(error.message || 'Authentication verification failed');
       apiUtils.clearStorage();
