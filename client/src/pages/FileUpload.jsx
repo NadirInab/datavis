@@ -609,8 +609,24 @@ const FileUpload = () => {
           fileSize: file.size,
           fileType: file.type,
           isAuthenticated: !!currentUser,
-          isVisitor: isVisitor()
+          isVisitor: isVisitor(),
+          userEmail: currentUser?.email,
+          hasFirebaseToken: !!currentUser?.accessToken
         });
+
+        // Verify authentication for authenticated users
+        if (currentUser && !currentUser.accessToken) {
+          console.warn('⚠️ User appears authenticated but no access token available');
+          try {
+            const token = await currentUser.getIdToken();
+            console.log('✅ Firebase token refreshed for upload');
+          } catch (tokenError) {
+            console.error('❌ Failed to get Firebase token:', tokenError);
+            setError('Authentication error. Please sign in again.');
+            setLoading(false);
+            return;
+          }
+        }
 
         const formData = new FormData();
         formData.append('file', file);
@@ -627,7 +643,17 @@ const FileUpload = () => {
         }));
 
         console.log('📤 Calling fileAPI.uploadFile...');
+        console.log('🌐 API URL:', import.meta.env.VITE_API_BASE_URL || 'https://datavis-cc2x.onrender.com/api/v1');
+
         const uploadResponse = await fileAPI.uploadFile(formData);
+
+        console.log('📥 Upload response received:', {
+          success: uploadResponse.success,
+          hasFile: !!uploadResponse.file,
+          hasData: !!uploadResponse.data,
+          fileId: uploadResponse.file?._id || uploadResponse.file?.id,
+          fullResponse: uploadResponse
+        });
 
         if (!uploadResponse.success) {
           console.error('❌ Backend upload failed:', uploadResponse);
@@ -665,24 +691,30 @@ const FileUpload = () => {
         console.error('🚨 API upload failed:', {
           error: uploadError.message,
           stack: uploadError.stack,
-          response: uploadError.response?.data
+          response: uploadError.response?.data,
+          status: uploadError.response?.status,
+          isAuthenticated: !!currentUser,
+          isVisitor: isVisitor(),
+          apiUrl: import.meta.env.VITE_API_BASE_URL || 'https://datavis-cc2x.onrender.com/api/v1'
         });
 
-        // For authenticated users, don't fall back to localStorage - show error
+        // For authenticated users, NEVER fall back to localStorage in production
         if (currentUser) {
-          setError('Failed to upload file to server. Please try again.');
+          console.error('❌ Authenticated user upload failed - NOT using localStorage fallback');
+          setError(`Failed to upload file to server: ${uploadError.message}. Please try again.`);
           setLoading(false);
           return;
         }
 
-        // Only fall back to localStorage for visitors
-        if (isVisitor()) {
-          console.warn('⚠️ Falling back to localStorage for visitor');
+        // Only fall back to localStorage for visitors in development
+        if (isVisitor() && import.meta.env.DEV) {
+          console.warn('⚠️ Falling back to localStorage for visitor (development only)');
           const userId = localStorage.getItem('sessionId') || 'visitor-session';
           const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
           localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
         } else {
-          setError('Failed to upload file. Please try again.');
+          console.error('❌ Upload failed and no fallback available');
+          setError(`Failed to upload file: ${uploadError.message}. Please try again.`);
           setLoading(false);
           return;
         }
