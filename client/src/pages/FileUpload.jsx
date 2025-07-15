@@ -716,19 +716,29 @@ const FileUpload = () => {
           return;
         }
 
-        // TEMPORARY: Add localStorage fallback to see what's happening
-        console.error('🚨 CRITICAL: API upload failed - using localStorage fallback to continue');
-        console.error('🔍 This means the file is NOT being saved to the database!');
+        // CRITICAL ERROR: API upload failed
+        console.error('🚨 CRITICAL: API upload failed - FILE NOT SAVED TO DATABASE!');
+        console.error('🔍 Error details:', {
+          message: uploadError.message,
+          status: uploadError.response?.status,
+          statusText: uploadError.response?.statusText,
+          responseData: uploadError.response?.data
+        });
 
-        const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
+        // For authenticated users, STOP here - don't use localStorage
+        if (currentUser) {
+          setError(`❌ Upload failed: ${uploadError.message}. Please try again or contact support.`);
+          setLoading(false);
+          return;
+        }
+
+        // Only for visitors - temporary localStorage fallback
+        console.warn('⚠️ Visitor fallback to localStorage - file will have timestamp ID:', tempFileId);
+        const userId = localStorage.getItem('sessionId') || 'visitor-session';
         const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
         localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
 
-        // Show warning to user
         setError(`⚠️ Upload failed: ${uploadError.message}. File saved locally but will not persist.`);
-
-        // Continue with localStorage data for now
-        console.warn('⚠️ Continuing with localStorage - file will have timestamp ID:', tempFileId);
       }
 
       // Record upload for metrics
