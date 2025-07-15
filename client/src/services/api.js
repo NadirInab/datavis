@@ -2,7 +2,10 @@
 import axios from 'axios';
 
 // API base configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
+if (!import.meta.env.VITE_API_BASE_URL) {
+  throw new Error('VITE_API_BASE_URL is not defined');
+}
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Request throttling cache
 const requestCache = new Map();
