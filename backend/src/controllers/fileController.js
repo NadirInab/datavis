@@ -287,9 +287,31 @@ const getFileDetails = async (req, res) => {
     const { id } = req.params;
     const user = req.user;
 
+    console.log('📁 File details request:', {
+      fileId: id,
+      userId: user?._id,
+      firebaseUid: user?.firebaseUid,
+      isValidObjectId: require('mongoose').Types.ObjectId.isValid(id)
+    });
+
+    // Check if the ID is a valid MongoDB ObjectId
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.error('❌ Invalid file ID format:', id);
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: `File not found (ID: ${id}). Please upload a file first or check the file ID.`
+      });
+    }
+
     const file = await File.findOne({
       _id: id,
       ownerUid: user.firebaseUid
+    });
+
+    console.log('🔍 File query result:', {
+      fileFound: !!file,
+      fileName: file?.filename
     });
 
     if (!file) {
@@ -309,7 +331,23 @@ const getFileDetails = async (req, res) => {
     });
 
   } catch (error) {
+    console.error('🚨 File details error:', {
+      error: error.message,
+      stack: error.stack,
+      fileId: req.params.id,
+      userId: req.user?._id
+    });
+
     logger.error('Get file details error:', error);
+
+    // Handle specific MongoDB errors
+    if (error.name === 'CastError') {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: `File not found (ID: ${req.params.id}). Please upload a file first or check the file ID.`
+      });
+    }
+
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: 'Failed to retrieve file details',

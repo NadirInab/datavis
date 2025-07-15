@@ -639,9 +639,18 @@ const FileUpload = () => {
 
         console.log('✅ File uploaded successfully to backend:', {
           fileId: uploadedFileId,
-          fileName: uploadResponse.data?.file?.filename,
-          status: uploadResponse.data?.file?.status
+          fileName: uploadResponse.file?.filename || uploadResponse.data?.file?.filename,
+          status: uploadResponse.file?.status || uploadResponse.data?.file?.status,
+          originalTempId: tempFileId,
+          backendResponse: uploadResponse
         });
+
+        // Verify we got a proper ObjectId from backend
+        if (uploadedFileId === tempFileId) {
+          console.warn('⚠️ Using temporary ID - backend may not have returned proper file ID');
+        } else {
+          console.log('✅ Using backend ObjectId for navigation:', uploadedFileId);
+        }
 
         // Update fileRecord with backend data
         fileRecord.id = uploadedFileId;
@@ -649,6 +658,8 @@ const FileUpload = () => {
 
         // Update the fileId variable for navigation
         fileId = uploadedFileId;
+
+        console.log('🧭 Navigation will use file ID:', fileId);
 
       } catch (uploadError) {
         console.error('🚨 API upload failed:', {
