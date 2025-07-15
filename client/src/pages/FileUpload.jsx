@@ -604,6 +604,14 @@ const FileUpload = () => {
 
       // Upload file to backend API instead of localStorage
       try {
+        console.log('🚀 Starting file upload to backend:', {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          isAuthenticated: !!currentUser,
+          isVisitor: isVisitor()
+        });
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('metadata', JSON.stringify({
@@ -618,16 +626,22 @@ const FileUpload = () => {
           visualizations: fileRecord.visualizations
         }));
 
+        console.log('📤 Calling fileAPI.uploadFile...');
         const uploadResponse = await fileAPI.uploadFile(formData);
 
         if (!uploadResponse.success) {
+          console.error('❌ Backend upload failed:', uploadResponse);
           throw new Error(uploadResponse.message || 'Upload failed');
         }
 
         // Use the file ID from the backend response
-        const uploadedFileId = uploadResponse.data?.file?._id || uploadResponse.data?.fileId || tempFileId;
+        const uploadedFileId = uploadResponse.file?._id || uploadResponse.file?.id || uploadResponse.data?.file?._id || uploadResponse.data?.fileId || tempFileId;
 
-        console.log('File uploaded successfully:', uploadResponse.data);
+        console.log('✅ File uploaded successfully to backend:', {
+          fileId: uploadedFileId,
+          fileName: uploadResponse.data?.file?.filename,
+          status: uploadResponse.data?.file?.status
+        });
 
         // Update fileRecord with backend data
         fileRecord.id = uploadedFileId;
@@ -637,12 +651,30 @@ const FileUpload = () => {
         fileId = uploadedFileId;
 
       } catch (uploadError) {
-        console.error('API upload failed, falling back to localStorage:', uploadError);
+        console.error('🚨 API upload failed:', {
+          error: uploadError.message,
+          stack: uploadError.stack,
+          response: uploadError.response?.data
+        });
 
-        // Fallback to localStorage for development/testing
-        const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
-        const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
-        localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
+        // For authenticated users, don't fall back to localStorage - show error
+        if (currentUser) {
+          setError('Failed to upload file to server. Please try again.');
+          setLoading(false);
+          return;
+        }
+
+        // Only fall back to localStorage for visitors
+        if (isVisitor()) {
+          console.warn('⚠️ Falling back to localStorage for visitor');
+          const userId = localStorage.getItem('sessionId') || 'visitor-session';
+          const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
+          localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
+        } else {
+          setError('Failed to upload file. Please try again.');
+          setLoading(false);
+          return;
+        }
       }
 
       // Record upload for metrics

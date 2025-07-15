@@ -114,11 +114,27 @@ class UserCreationService {
     };
 
     // Create user document
+    console.log('📝 Creating user document:', {
+      email: userData.email,
+      firebaseUid: userData.firebaseUid
+    });
+
     const user = new User(userData);
     await user.save();
 
+    console.log('✅ User document saved to MongoDB:', {
+      userId: user._id,
+      email: user.email
+    });
+
     // Set Firebase custom claims
-    await this.setUserCustomClaims(user);
+    try {
+      await this.setUserCustomClaims(user);
+      console.log('✅ Firebase custom claims set');
+    } catch (claimsError) {
+      console.warn('⚠️ Failed to set Firebase custom claims:', claimsError.message);
+      // Don't fail the entire process for custom claims
+    }
 
     return user;
   }

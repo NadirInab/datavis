@@ -13,8 +13,18 @@ const { FILE_STATUS, FILE_CONSTRAINTS, HTTP_STATUS } = require('../utils/constan
  */
 const uploadFile = async (req, res) => {
   try {
+    console.log('📁 File upload request received:', {
+      hasFile: !!req.file,
+      fileName: req.file?.originalname,
+      fileSize: req.file?.size,
+      hasUser: !!req.user,
+      hasVisitor: !!req.visitor,
+      sessionId: req.sessionId
+    });
+
     // Check if file was uploaded
     if (!req.file) {
+      console.error('❌ No file in upload request');
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
         message: 'No file uploaded'
@@ -128,7 +138,19 @@ const uploadFile = async (req, res) => {
     }
 
     // Save file record
+    console.log('💾 Saving file record to MongoDB:', {
+      filename: fileRecord.filename,
+      ownerUid: fileRecord.ownerUid,
+      status: fileRecord.status
+    });
+
     await fileRecord.save();
+
+    console.log('✅ File record saved to MongoDB:', {
+      fileId: fileRecord._id,
+      filename: fileRecord.filename,
+      status: fileRecord.status
+    });
 
     // Update user/visitor file usage
     if (user) {
@@ -166,6 +188,12 @@ const uploadFile = async (req, res) => {
     if (req.visitorLimits) {
       response.visitorLimits = req.visitorLimits;
     }
+
+    console.log('✅ Sending file upload response:', {
+      fileId: response.file.id,
+      filename: response.file.filename,
+      status: response.file.status
+    });
 
     res.status(HTTP_STATUS.CREATED).json(response);
 

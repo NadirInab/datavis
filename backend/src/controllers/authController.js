@@ -14,8 +14,19 @@ const verifyToken = async (req, res) => {
       hasToken: !!req.body.idToken,
       tokenLength: req.body.idToken?.length,
       ip: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get('User-Agent'),
+      dbState: require('mongoose').connection.readyState
     });
+
+    // Check database connection
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      console.error('❌ Database not connected, state:', mongoose.connection.readyState);
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection error'
+      });
+    }
 
     const { idToken } = req.body;
 
@@ -55,6 +66,12 @@ const verifyToken = async (req, res) => {
       logger.info(`Existing Google user updated: ${user.email} (${userCreationResult.processingTime}ms)`);
     }
 
+    console.log('✅ Sending successful auth response:', {
+      userId: user._id,
+      email: user.email,
+      isNewUser: userCreationResult.isNewUser
+    });
+
     res.status(200).json({
       success: true,
       data: {
@@ -75,15 +92,38 @@ const verifyToken = async (req, res) => {
           uid: decodedToken.uid,
           email: decodedToken.email,
           emailVerified: decodedToken.email_verified
-        }
+        },
+        isNewUser: userCreationResult.isNewUser
       }
     });
 
   } catch (error) {
+    console.error('🚨 Auth verification failed:', {
+      error: error.message,
+      stack: error.stack,
+      hasToken: !!req.body.idToken
+    });
+
     logger.error('Token verification failed:', error);
-    res.status(401).json({
+
+    // Determine error type for better debugging
+    let statusCode = 401;
+    let message = 'Invalid or expired token';
+
+    if (error.message.includes('Firebase')) {
+      message = 'Firebase token verification failed';
+    } else if (error.message.includes('MongoDB') || error.message.includes('database')) {
+      statusCode = 500;
+      message = 'Database error during user creation';
+    } else if (error.message.includes('User creation')) {
+      statusCode = 500;
+      message = 'Failed to create user account';
+    }
+
+    res.status(statusCode).json({
       success: false,
-      message: 'Invalid or expired token'
+      message: message,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

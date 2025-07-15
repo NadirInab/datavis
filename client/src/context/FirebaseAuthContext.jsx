@@ -357,7 +357,8 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return transformedUser;
       } else {
-        throw new Error('Backend verification failed');
+        console.error('❌ Backend verification failed:', response);
+        throw new Error(`Backend verification failed: ${response.message || 'Unknown error'}`);
       }
     } catch (error) {
       // Don't handle aborted requests
