@@ -56,58 +56,116 @@ const updateProfile = async (req, res) => {
 // @access  Private
 const getDashboard = async (req, res) => {
   try {
-    const user = req.user;
-
-    // Get user files
-    const files = await File.find({ ownerUid: user.firebaseUid })
-      .sort({ uploadedAt: -1 })
-      .limit(5)
-      .select('filename originalName size status uploadedAt dataInfo visualizations');
-
-    // Get usage statistics
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
-
-    const usageStats = await UsageTracking.findOne({
-      userUid: user.firebaseUid,
-      'period.year': currentYear,
-      'period.month': currentMonth
+    console.log('📊 Dashboard request received for user:', {
+      userId: req.user?._id,
+      firebaseUid: req.user?.firebaseUid,
+      email: req.user?.email
     });
 
-    // Calculate storage usage
-    const totalFiles = await File.countDocuments({ ownerUid: user.firebaseUid });
-    const storageUsed = await File.aggregate([
-      { $match: { ownerUid: user.firebaseUid } },
-      { $group: { _id: null, totalSize: { $sum: '$size' } } }
-    ]);
+    const user = req.user;
 
-    // Get recent activity
-    const recentFiles = await File.find({ ownerUid: user.firebaseUid })
-      .sort({ uploadedAt: -1 })
-      .limit(10)
-      .select('filename status uploadedAt');
+    if (!user || !user.firebaseUid) {
+      console.error('❌ Dashboard request without valid user');
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
 
+    // Get user files with error handling
+    let files = [];
+    try {
+      files = await File.find({ ownerUid: user.firebaseUid })
+        .sort({ uploadedAt: -1 })
+        .limit(5)
+        .select('filename originalName size status uploadedAt dataInfo visualizations');
+      console.log('✅ Found user files:', files.length);
+    } catch (fileError) {
+      console.error('⚠️ Error fetching user files:', fileError.message);
+      files = [];
+    }
+
+    // Get usage statistics with error handling
+    let usageStats = null;
+    try {
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+
+      usageStats = await UsageTracking.findOne({
+        userUid: user.firebaseUid,
+        'period.year': currentYear,
+        'period.month': currentMonth
+      });
+      console.log('✅ Usage stats retrieved:', !!usageStats);
+    } catch (usageError) {
+      console.error('⚠️ Error fetching usage stats:', usageError.message);
+      usageStats = null;
+    }
+
+    // Calculate storage usage with error handling
+    let totalFiles = 0;
+    let storageUsed = [];
+    let recentFiles = [];
+
+    try {
+      totalFiles = await File.countDocuments({ ownerUid: user.firebaseUid });
+      console.log('✅ Total files count:', totalFiles);
+    } catch (countError) {
+      console.error('⚠️ Error counting files:', countError.message);
+      totalFiles = 0;
+    }
+
+    try {
+      storageUsed = await File.aggregate([
+        { $match: { ownerUid: user.firebaseUid } },
+        { $group: { _id: null, totalSize: { $sum: '$size' } } }
+      ]);
+      console.log('✅ Storage calculation completed');
+    } catch (storageError) {
+      console.error('⚠️ Error calculating storage:', storageError.message);
+      storageUsed = [];
+    }
+
+    // Get recent activity with error handling
+    try {
+      recentFiles = await File.find({ ownerUid: user.firebaseUid })
+        .sort({ uploadedAt: -1 })
+        .limit(10)
+        .select('filename status uploadedAt');
+      console.log('✅ Recent files retrieved:', recentFiles.length);
+    } catch (recentError) {
+      console.error('⚠️ Error fetching recent files:', recentError.message);
+      recentFiles = [];
+    }
+
+    // Construct dashboard data with safe defaults
     const dashboardData = {
       user: {
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        subscription: user.subscription,
-        subscriptionLimits: user.subscriptionLimits
+        name: user.name || 'Unknown User',
+        email: user.email || '',
+        role: user.role || 'user',
+        subscription: user.subscription || { tier: 'free', status: 'active' },
+        subscriptionLimits: user.subscriptionLimits || {
+          storage: 100 * 1024 * 1024, // 100MB default
+          files: 10,
+          visualizations: 5
+        }
       },
       stats: {
         totalFiles,
         storageUsed: storageUsed[0]?.totalSize || 0,
-        storageLimit: user.subscriptionLimits.storage,
+        storageLimit: user.subscriptionLimits?.storage || 100 * 1024 * 1024,
         filesThisMonth: usageStats?.fileUsage?.uploads?.count || 0,
         visualizationsCreated: usageStats?.visualizationUsage?.created || 0,
         exportsThisMonth: usageStats?.exportUsage?.total || 0
       },
-      recentFiles: files,
-      recentActivity: recentFiles,
-      usageTrends: usageStats?.getSummary() || null
+      recentFiles: files || [],
+      recentActivity: recentFiles || [],
+      usageTrends: null // Simplified to avoid getSummary() errors
     };
+
+    console.log('✅ Dashboard data constructed successfully');
 
     res.status(200).json({
       success: true,
@@ -115,10 +173,19 @@ const getDashboard = async (req, res) => {
     });
 
   } catch (error) {
+    console.error('🚨 Dashboard error:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?._id,
+      firebaseUid: req.user?.firebaseUid
+    });
+
     logger.error('Get dashboard failed:', error);
+
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
