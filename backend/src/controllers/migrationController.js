@@ -1,4 +1,4 @@
-const migrationService = require('../services/migrationService');
+const migrationService = require('../services/simpleMigrationService');
 const userCreationService = require('../services/userCreationService');
 const logger = require('../utils/logger');
 const { HTTP_STATUS } = require('../utils/constants');
