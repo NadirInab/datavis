@@ -642,9 +642,19 @@ const FileUpload = () => {
           visualizations: fileRecord.visualizations
         }));
 
-        console.log('📤 Calling fileAPI.uploadFile...');
-        console.log('🌐 API URL:', import.meta.env.VITE_API_BASE_URL || 'https://datavis-cc2x.onrender.com/api/v1');
+        // Test API connectivity first
+        console.log('🌐 Testing API connectivity...');
+        const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://datavis-cc2x.onrender.com/api/v1';
+        console.log('🌐 API URL:', apiUrl);
 
+        try {
+          const healthCheck = await fetch(`${apiUrl}/health`);
+          console.log('🏥 Health check response:', healthCheck.status, healthCheck.statusText);
+        } catch (healthError) {
+          console.error('❌ API not reachable:', healthError.message);
+        }
+
+        console.log('📤 Calling fileAPI.uploadFile...');
         const uploadResponse = await fileAPI.uploadFile(formData);
 
         console.log('📥 Upload response received:', {
@@ -706,18 +716,19 @@ const FileUpload = () => {
           return;
         }
 
-        // Only fall back to localStorage for visitors in development
-        if (isVisitor() && import.meta.env.DEV) {
-          console.warn('⚠️ Falling back to localStorage for visitor (development only)');
-          const userId = localStorage.getItem('sessionId') || 'visitor-session';
-          const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
-          localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
-        } else {
-          console.error('❌ Upload failed and no fallback available');
-          setError(`Failed to upload file: ${uploadError.message}. Please try again.`);
-          setLoading(false);
-          return;
-        }
+        // TEMPORARY: Add localStorage fallback to see what's happening
+        console.error('🚨 CRITICAL: API upload failed - using localStorage fallback to continue');
+        console.error('🔍 This means the file is NOT being saved to the database!');
+
+        const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
+        const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
+        localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
+
+        // Show warning to user
+        setError(`⚠️ Upload failed: ${uploadError.message}. File saved locally but will not persist.`);
+
+        // Continue with localStorage data for now
+        console.warn('⚠️ Continuing with localStorage - file will have timestamp ID:', tempFileId);
       }
 
       // Record upload for metrics
