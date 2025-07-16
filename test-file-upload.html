@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .warning { background: #fff3e0; color: #ef6c00; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input[type="file"] { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 File Upload Test</h1>
+        <p>This tool tests the file upload API directly to diagnose issues.</p>
+        
+        <div>
+            <input type="file" id="fileInput" accept=".csv" />
+            <button onclick="testUpload()">Test Upload</button>
+            <button onclick="clearLogs()">Clear Logs</button>
+        </div>
+        
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://datavis-cc2x.onrender.com/api/v1';
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> ${message}`;
+            logs.appendChild(logDiv);
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        async function testUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                log('❌ Please select a CSV file first', 'error');
+                return;
+            }
+            
+            log(`🚀 Starting upload test for: ${file.name} (${file.size} bytes)`);
+            
+            try {
+                // Test 1: Check backend health
+                log('🔍 Testing backend health...');
+                try {
+                    const healthResponse = await fetch(`${API_BASE_URL}/health`);
+                    const healthData = await healthResponse.json();
+                    if (healthData.success) {
+                        log(`✅ Backend is running (DB: ${healthData.database})`, 'success');
+                    } else {
+                        log('❌ Backend health check failed', 'error');
+                        return;
+                    }
+                } catch (healthError) {
+                    log(`❌ Backend not accessible: ${healthError.message}`, 'error');
+                    return;
+                }
+                
+                // Test 2: Try file upload without authentication (visitor mode)
+                log('📤 Testing file upload as visitor...');
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('metadata', JSON.stringify({
+                    filename: file.name,
+                    size: file.size,
+                    type: file.type
+                }));
+                
+                const uploadResponse = await fetch(`${API_BASE_URL}/files/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                log(`📥 Upload response: ${uploadResponse.status} ${uploadResponse.statusText}`);
+                
+                const responseData = await uploadResponse.json();
+                log(`📊 Response data: ${JSON.stringify(responseData, null, 2)}`);
+                
+                if (responseData.success) {
+                    log(`✅ Upload successful! File ID: ${responseData.file.id}`, 'success');
+                    
+                    // Test 3: Try to retrieve the uploaded file
+                    log(`🔍 Testing file retrieval...`);
+                    try {
+                        const fileResponse = await fetch(`${API_BASE_URL}/files/${responseData.file.id}`);
+                        const fileData = await fileResponse.json();
+                        
+                        if (fileData.success) {
+                            log(`✅ File retrieval successful!`, 'success');
+                        } else {
+                            log(`❌ File retrieval failed: ${fileData.message}`, 'error');
+                        }
+                    } catch (retrievalError) {
+                        log(`❌ File retrieval error: ${retrievalError.message}`, 'error');
+                    }
+                } else {
+                    log(`❌ Upload failed: ${responseData.message}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`🚨 Test error: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+        
+        // Initialize
+        log('🧪 File Upload Test Tool Ready');
+        log(`🌐 Testing against: ${API_BASE_URL}`);
+    </script>
+</body>
+</html>

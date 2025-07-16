@@ -5,6 +5,9 @@ import { FeatureCard } from '../components/ui/Card';
 import { FeatureModal } from '../components/ui/Modal';
 import { useAuth } from '../context/FirebaseAuthContext';
 import SEOHead from '../components/SEO/SEOHead';
+import AnimatedHero from '../components/landing/AnimatedHero';
+import ModernPricing from '../components/landing/ModernPricing';
+import TestimonialsSection from '../components/landing/TestimonialsSection';
 
 const LandingPage = () => {
   const { currentUser } = useAuth();
@@ -171,7 +174,7 @@ const LandingPage = () => {
   };
 
   return (
-    <>
+    <React.Fragment>
       <SEOHead
         pageKey="home"
         customTitle="CSV Analytics Studio - Professional Data Visualization & Business Intelligence Dashboard"
@@ -179,122 +182,71 @@ const LandingPage = () => {
         customKeywords="csv analytics dashboard, data visualization tool, business intelligence dashboard, spreadsheet analysis software, csv data processing, online csv analyzer"
       />
 
-      <div className="bg-gradient-to-br from-highlight-50 via-white to-primary-50/20 min-h-screen relative overflow-hidden">
-        {/* Floating background elements */}
+      <div
+        className="min-h-screen relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(to bottom right, #FAFFCA, #dbeeed, #c5e1cf)'
+        }}
+      >
+        {/* Enhanced floating background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
-            className="absolute top-20 left-10 w-32 h-32 bg-primary-100/40 rounded-full blur-xl animate-pulse"
-            style={{ transform: `translateY(${scrollY * 0.1}px)` }}
+            className="absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-pulse"
+            style={{
+              transform: `translateY(${scrollY * 0.1}px)`,
+              background: 'linear-gradient(to bottom right, rgba(143, 196, 193, 0.8), rgba(156, 202, 171, 0.6))'
+            }}
           ></div>
           <div
-            className="absolute top-40 right-20 w-24 h-24 bg-secondary-100/40 rounded-full blur-lg animate-pulse delay-1000"
-            style={{ transform: `translateY(${scrollY * 0.15}px)` }}
+            className="absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-pulse"
+            style={{
+              transform: `translateY(${scrollY * 0.15}px)`,
+              background: 'linear-gradient(to bottom right, rgba(156, 202, 171, 0.8), rgba(199, 219, 162, 0.6))',
+              animationDelay: '1s'
+            }}
           ></div>
           <div
-            className="absolute bottom-40 left-1/4 w-20 h-20 bg-accent-100/40 rounded-full blur-lg animate-pulse delay-2000"
-            style={{ transform: `translateY(${scrollY * 0.08}px)` }}
+            className="absolute bottom-40 left-1/4 w-20 h-20 rounded-full blur-lg animate-pulse"
+            style={{
+              transform: `translateY(${scrollY * 0.08}px)`,
+              background: 'linear-gradient(to bottom right, rgba(199, 219, 162, 0.8), rgba(250, 255, 202, 0.6))',
+              animationDelay: '2s'
+            }}
+          ></div>
+          <div
+            className="absolute top-1/3 right-1/3 w-16 h-16 rounded-full blur-md animate-pulse"
+            style={{
+              transform: `translateY(${scrollY * 0.12}px)`,
+              background: 'linear-gradient(to bottom right, rgba(250, 255, 202, 0.7), rgba(107, 165, 162, 0.5))',
+              animationDelay: '3s'
+            }}
           ></div>
         </div>
 
-        {/* Hero section */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 via-secondary-500/3 to-accent-500/5"></div>
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
-            <div className="text-center">
-              {/* Animated logo */}
-              <div className={`mb-8 flex justify-center transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                <div className="relative">
-                  <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-3xl flex items-center justify-center shadow-2xl transform hover:scale-105 transition-transform duration-300">
-                    <Icons.Chart className="w-12 h-12 text-white" />
-                  </div>
-                  {/* Floating data points */}
-                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-accent-400 rounded-full animate-bounce delay-500"></div>
-                  <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-secondary-400 rounded-full animate-bounce delay-1000"></div>
-                  <div className="absolute top-1/2 -right-4 w-2 h-2 bg-primary-400 rounded-full animate-bounce delay-1500"></div>
-                </div>
-              </div>
-              {/* Main headline with staggered animation */}
-              <h1 className={`text-5xl md:text-7xl font-bold tracking-tight mb-6 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                <span className="block bg-gradient-to-r from-primary-600 via-secondary-600 to-accent-600 bg-clip-text text-transparent">
-                  Professional CSV Analytics
-                </span>
-                <span className="block text-primary-700 mt-2 text-4xl md:text-5xl">
-                  & Data Visualization Dashboard
-                </span>
-              </h1>
+        {/* Modern Animated Hero Section */}
+        <AnimatedHero />
 
-              {/* Subtitle with delayed animation */}
-              <p className={`mt-6 max-w-4xl mx-auto text-xl md:text-2xl text-primary-600/80 leading-relaxed transition-all duration-1000 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                Transform spreadsheet data into professional dashboards trusted by <span className="font-semibold text-secondary-600">10,000+</span> businesses worldwide.
-                Create stunning visualizations and generate actionable insights in minutes—no coding required.
-              </p>
-
-              {/* Trust indicators with staggered animation */}
-              <div className={`mt-8 flex flex-wrap justify-center gap-4 text-sm text-primary-600/70 transition-all duration-1000 delay-600 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                <div className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-5 py-3 rounded-full border border-secondary-200 shadow-sm hover:shadow-md transition-shadow duration-300">
-                  <Icons.Shield className="w-4 h-4 text-accent-600" />
-                  <span className="font-medium">Enterprise Security</span>
-                </div>
-                <div className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-5 py-3 rounded-full border border-secondary-200 shadow-sm hover:shadow-md transition-shadow duration-300">
-                  <Icons.BarChart className="w-4 h-4 text-primary-600" />
-                  <span className="font-medium">50+ Chart Types</span>
-                </div>
-                <div className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-5 py-3 rounded-full border border-secondary-200 shadow-sm hover:shadow-md transition-shadow duration-300">
-                  <Icons.Users className="w-4 h-4 text-secondary-600" />
-                  <span className="font-medium">Team Collaboration</span>
-                </div>
-                <div className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-5 py-3 rounded-full border border-secondary-200 shadow-sm hover:shadow-md transition-shadow duration-300">
-                  <Icons.Download className="w-4 h-4 text-primary-600" />
-                  <span className="font-medium">Professional Reports</span>
-                </div>
-              </div>
-
-              {/* Call-to-action buttons with animation */}
-              <div className={`mt-12 flex flex-col sm:flex-row gap-4 justify-center items-center transition-all duration-1000 delay-800 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                {currentUser ? (
-                  <Button
-                    as={Link}
-                    to="/app"
-                    variant="primary"
-                    size="lg"
-                    icon={Icons.ArrowRight}
-                    iconPosition="right"
-                    className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-                  >
-                    Access Dashboard
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      as={Link}
-                      to="/register"
-                      variant="primary"
-                      size="lg"
-                      icon={Icons.ArrowRight}
-                      iconPosition="right"
-                      className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-                    >
-                      Start Free Trial
-                    </Button>
-                    <Button
-                      as={Link}
-                      to="/login"
-                      variant="outline"
-                      size="lg"
-                      icon={Icons.Eye}
-                      className="border-primary-300 text-primary-700 hover:bg-primary-50 hover:border-primary-400 transition-all duration-300"
-                    >
-                      Sign In
-                    </Button>
-                  </>
-                )}
-              </div>
-
-            {/* Demo preview */}
-            <div className="mt-16 relative">
-              <div id="upload-demo" className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-strong p-8 border border-primary-200 max-w-5xl mx-auto">
+        {/* Demo Preview Section */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+          {/* Demo preview */}
+          <div className="mt-16 relative">
+            <div
+              id="upload-demo"
+              className="backdrop-blur-sm rounded-3xl shadow-strong p-8 border max-w-5xl mx-auto ring-1"
+              style={{
+                background: 'linear-gradient(to bottom right, rgba(255, 255, 255, 0.95), rgba(185, 221, 219, 0.6))',
+                borderColor: 'rgba(107, 165, 162, 0.5)',
+                ringColor: 'rgba(156, 202, 171, 0.4)'
+              }}
+            >
                 {/* Data Visualization Preview */}
-                <div className="aspect-video bg-gradient-to-br from-highlight-50 to-primary-50 rounded-2xl p-6 relative overflow-hidden">
+                <div
+                  className="aspect-video rounded-2xl p-6 relative overflow-hidden border"
+                  style={{
+                    background: 'linear-gradient(to bottom right, #FAFFCA, rgba(222, 235, 199, 0.8), rgba(197, 225, 207, 0.6))',
+                    borderColor: 'rgba(143, 196, 193, 0.6)'
+                  }}
+                >
                   {/* Preview Title */}
                   <div className="text-center mb-8">
                     <h3 className="text-xl font-bold text-primary-800 mb-2">Transform Your Data Into Insights</h3>
@@ -318,24 +270,24 @@ const LandingPage = () => {
                   {/* Sample Visualizations Grid */}
                   <div className="grid grid-cols-4 gap-4 h-full">
                     {/* Bar Chart */}
-                    <div className="bg-white/70 rounded-xl p-4 border border-primary-100 hover:bg-white/80 transition-all duration-300">
+                    <div className="bg-gradient-to-br from-white/90 to-primary-50/60 rounded-xl p-4 border border-primary-200/60 hover:from-white/95 hover:to-primary-100/40 transition-all duration-300 shadow-sm">
                       <div className="text-center mb-2">
-                        <h4 className="text-xs font-medium text-primary-700">Bar Charts</h4>
+                        <h4 className="text-xs font-medium text-primary-800">Bar Charts</h4>
                       </div>
                       <div className="flex items-end justify-center space-x-1 h-12">
-                        <div className="bg-primary-400 w-2 h-6 rounded-sm animate-pulse delay-100"></div>
-                        <div className="bg-secondary-400 w-2 h-9 rounded-sm animate-pulse delay-200"></div>
-                        <div className="bg-accent-400 w-2 h-12 rounded-sm animate-pulse delay-300"></div>
-                        <div className="bg-primary-500 w-2 h-7 rounded-sm animate-pulse delay-400"></div>
-                        <div className="bg-secondary-500 w-2 h-10 rounded-sm animate-pulse delay-500"></div>
+                        <div className="bg-gradient-to-t from-primary-500 to-primary-400 w-2 h-6 rounded-sm animate-pulse delay-100"></div>
+                        <div className="bg-gradient-to-t from-secondary-500 to-secondary-400 w-2 h-9 rounded-sm animate-pulse delay-200"></div>
+                        <div className="bg-gradient-to-t from-accent-500 to-accent-400 w-2 h-12 rounded-sm animate-pulse delay-300"></div>
+                        <div className="bg-gradient-to-t from-primary-600 to-primary-500 w-2 h-7 rounded-sm animate-pulse delay-400"></div>
+                        <div className="bg-gradient-to-t from-secondary-600 to-secondary-500 w-2 h-10 rounded-sm animate-pulse delay-500"></div>
                       </div>
-                      <p className="text-xs text-primary-600 text-center mt-2">Compare categories</p>
+                      <p className="text-xs text-primary-700 text-center mt-2">Compare categories</p>
                     </div>
 
                     {/* Line Chart */}
-                    <div className="bg-white/70 rounded-xl p-4 border border-primary-100 hover:bg-white/80 transition-all duration-300">
+                    <div className="bg-gradient-to-br from-white/90 to-secondary-50/60 rounded-xl p-4 border border-secondary-200/60 hover:from-white/95 hover:to-secondary-100/40 transition-all duration-300 shadow-sm">
                       <div className="text-center mb-2">
-                        <h4 className="text-xs font-medium text-primary-700">Line Charts</h4>
+                        <h4 className="text-xs font-medium text-secondary-800">Line Charts</h4>
                       </div>
                       <div className="relative h-12 flex items-center">
                         <svg className="w-full h-full" viewBox="0 0 80 40">
@@ -344,27 +296,27 @@ const LandingPage = () => {
                             stroke="currentColor"
                             strokeWidth="2"
                             fill="none"
-                            className="text-secondary-500"
+                            className="text-secondary-600"
                           />
                           <circle cx="75" cy="10" r="1.5" className="fill-accent-500 animate-pulse" />
                         </svg>
                       </div>
-                      <p className="text-xs text-primary-600 text-center mt-2">Track trends</p>
+                      <p className="text-xs text-secondary-700 text-center mt-2">Track trends</p>
                     </div>
 
                     {/* Pie Chart */}
-                    <div className="bg-white/70 rounded-xl p-4 border border-primary-100 hover:bg-white/80 transition-all duration-300">
+                    <div className="bg-gradient-to-br from-white/90 to-accent-50/60 rounded-xl p-4 border border-accent-200/60 hover:from-white/95 hover:to-accent-100/40 transition-all duration-300 shadow-sm">
                       <div className="text-center mb-2">
-                        <h4 className="text-xs font-medium text-primary-700">Pie Charts</h4>
+                        <h4 className="text-xs font-medium text-accent-800">Pie Charts</h4>
                       </div>
                       <div className="flex justify-center h-12 items-center">
                         <svg className="w-10 h-10" viewBox="0 0 42 42">
-                          <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="currentColor" strokeWidth="3" strokeDasharray="60 40" strokeDashoffset="25" className="text-primary-400" />
-                          <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="currentColor" strokeWidth="3" strokeDasharray="25 75" strokeDashoffset="85" className="text-secondary-400" />
-                          <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="currentColor" strokeWidth="3" strokeDasharray="15 85" strokeDashoffset="60" className="text-accent-400" />
+                          <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="currentColor" strokeWidth="3" strokeDasharray="60 40" strokeDashoffset="25" className="text-primary-500" />
+                          <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="currentColor" strokeWidth="3" strokeDasharray="25 75" strokeDashoffset="85" className="text-secondary-500" />
+                          <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="currentColor" strokeWidth="3" strokeDasharray="15 85" strokeDashoffset="60" className="text-accent-500" />
                         </svg>
                       </div>
-                      <p className="text-xs text-primary-600 text-center mt-2">Show proportions</p>
+                      <p className="text-xs text-accent-700 text-center mt-2">Show proportions</p>
                     </div>
 
                     {/* Data Table */}
@@ -410,16 +362,29 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Security & Trust Section */}
-      <div className="py-16 bg-primary-50/30 border-y border-primary-200" data-section="security">
+                      
+
+      <TestimonialsSection />
+
+      
+      <ModernPricing />
+
+   
+      <div
+        className="py-16 border-y"
+        style={{
+          background: 'linear-gradient(to bottom right, rgba(185, 221, 219, 0.6), rgba(197, 225, 207, 0.5), rgba(222, 235, 199, 0.4))',
+          borderColor: 'rgba(107, 165, 162, 0.5)'
+        }}
+        data-section="security"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h3 className="text-lg font-semibold text-primary-700 mb-4">
+            <h3 className="text-lg font-semibold text-primary-800 mb-4">
               Trusted by Enterprise Customers Worldwide
             </h3>
-            <p className="text-primary-600 max-w-2xl mx-auto">
+            <p className="text-primary-700 max-w-2xl mx-auto">
               Your data security is our top priority. We maintain the highest standards of compliance and protection.
             </p>
           </div>
@@ -427,12 +392,12 @@ const LandingPage = () => {
           {/* Security Badges Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center justify-items-center">
             {/* SSL Certificate */}
-            <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm border border-primary-200 hover:shadow-md transition-shadow duration-300">
-              <div className="w-12 h-12 bg-accent-100 rounded-full flex items-center justify-center mb-3">
-                <Icons.Shield className="w-6 h-6 text-accent-600" />
+            <div className="flex flex-col items-center p-6 bg-gradient-to-br from-white/95 to-accent-50/60 rounded-xl shadow-sm border border-accent-200/60 hover:shadow-md hover:bg-gradient-to-br hover:from-white hover:to-accent-100/40 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-accent-200 to-accent-100 rounded-full flex items-center justify-center mb-3">
+                <Icons.Shield className="w-6 h-6 text-accent-700" />
               </div>
-              <h4 className="font-semibold text-primary-800 text-sm mb-1">SSL Encrypted</h4>
-              <p className="text-xs text-primary-600 text-center">256-bit encryption</p>
+              <h4 className="font-semibold text-accent-800 text-sm mb-1">SSL Encrypted</h4>
+              <p className="text-xs text-accent-600 text-center">256-bit encryption</p>
             </div>
 
             {/* GDPR Compliance */}
@@ -481,12 +446,12 @@ const LandingPage = () => {
         </div>
       </div>
 
-      {/* Feature section */}
-      <div className="py-24 bg-white relative overflow-hidden feature-section">
-        <div className="absolute inset-0 bg-gradient-to-b from-highlight-50/30 to-transparent"></div>
-        {/* Floating background elements */}
-        <div className="absolute top-20 right-10 w-32 h-32 bg-primary-100/20 rounded-full blur-xl"></div>
-        <div className="absolute bottom-20 left-10 w-24 h-24 bg-secondary-100/20 rounded-full blur-lg"></div>
+      <div className="py-24 bg-gradient-to-br from-white via-highlight-50/20 to-secondary-50/30 relative overflow-hidden feature-section">
+        <div className="absolute inset-0 bg-gradient-to-b from-highlight-100/40 via-transparent to-primary-50/20"></div>
+        {/* Enhanced floating background elements */}
+        <div className="absolute top-20 right-10 w-32 h-32 bg-gradient-to-br from-primary-200/30 to-secondary-200/20 rounded-full blur-xl"></div>
+        <div className="absolute bottom-20 left-10 w-24 h-24 bg-gradient-to-br from-secondary-200/30 to-accent-200/20 rounded-full blur-lg"></div>
+        <div className="absolute top-1/2 left-1/2 w-20 h-20 bg-gradient-to-br from-accent-200/20 to-highlight-200/30 rounded-full blur-md"></div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
@@ -617,202 +582,33 @@ const LandingPage = () => {
         </div>
       </div>
 
-      {/* Pricing section */}
-      <div className="bg-gray-50 py-16 sm:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-base font-semibold text-indigo-600 tracking-wide uppercase">Pricing</h2>
-            <p className="mt-1 text-4xl font-extrabold text-gray-900 sm:text-5xl sm:tracking-tight lg:text-6xl">
-              Plans for teams of all sizes
-            </p>
-            <p className="max-w-xl mt-5 mx-auto text-xl text-gray-500">
-              Start with our forever-free plan. Upgrade anytime as your needs grow.
-            </p>
-          </div>
 
-          <div className="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:mx-0 xl:grid-cols-3">
-            {/* Free Tier */}
-            <div className="border border-gray-200 rounded-lg shadow-sm divide-y divide-gray-200">
-              <div className="p-6">
-                <h2 className="text-lg leading-6 font-medium text-gray-900">Free</h2>
-                <p className="mt-4 text-sm text-gray-500">Perfect for individuals just getting started with data visualization.</p>
-                <p className="mt-8">
-                  <span className="text-4xl font-extrabold text-gray-900">$0</span>
-                  <span className="text-base font-medium text-gray-500">/mo</span>
-                </p>
-                <Link
-                  to="/register"
-                  className="mt-8 block w-full bg-indigo-50 border border-indigo-200 rounded-md py-2 text-sm font-semibold text-indigo-700 text-center hover:bg-indigo-100"
-                >
-                  Start for free
-                </Link>
-              </div>
-              <div className="pt-6 pb-8 px-6">
-                <h3 className="text-xs font-medium text-gray-900 tracking-wide uppercase">What's included</h3>
-                <ul className="mt-6 space-y-4">
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Up to 3 CSV files</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Basic visualizations</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">7-day data storage</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Export as PNG</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
 
-            {/* Pro Tier */}
-            <div className="border border-gray-200 rounded-lg shadow-sm divide-y divide-gray-200">
-              <div className="p-6">
-                <h2 className="text-lg leading-6 font-medium text-gray-900">Pro</h2>
-                <p className="mt-4 text-sm text-gray-500">For professionals who need more power and storage.</p>
-                <p className="mt-8">
-                  <span className="text-4xl font-extrabold text-gray-900">$15</span>
-                  <span className="text-base font-medium text-gray-500">/mo</span>
-                </p>
-                <Link
-                  to="/register"
-                  className="mt-8 block w-full bg-indigo-600 border border-transparent rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-indigo-700"
-                >
-                  Start free trial
-                </Link>
-              </div>
-              <div className="pt-6 pb-8 px-6">
-                <h3 className="text-xs font-medium text-gray-900 tracking-wide uppercase">What's included</h3>
-                <ul className="mt-6 space-y-4">
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Up to 50 CSV files</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Advanced visualizations</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">30-day data storage</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Export in multiple formats</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Team sharing</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Enterprise Tier */}
-            <div className="border border-gray-200 rounded-lg shadow-sm divide-y divide-gray-200">
-              <div className="p-6">
-                <h2 className="text-lg leading-6 font-medium text-gray-900">Enterprise</h2>
-                <p className="mt-4 text-sm text-gray-500">For organizations with advanced needs and large teams.</p>
-                <p className="mt-8">
-                  <span className="text-4xl font-extrabold text-gray-900">$49</span>
-                  <span className="text-base font-medium text-gray-500">/mo</span>
-                </p>
-                <Link
-                  to="/contact"
-                  className="mt-8 block w-full bg-indigo-50 border border-indigo-200 rounded-md py-2 text-sm font-semibold text-indigo-700 text-center hover:bg-indigo-100"
-                >
-                  Contact sales
-                </Link>
-              </div>
-              <div className="pt-6 pb-8 px-6">
-                <h3 className="text-xs font-medium text-gray-900 tracking-wide uppercase">What's included</h3>
-                <ul className="mt-6 space-y-4">
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Unlimited CSV files</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">All features</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">365-day data storage</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Priority support</span>
-                  </li>
-                  <li className="flex space-x-3">
-                    <svg className="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-gray-500">Custom visualizations</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-white">
+      <footer className="bg-gradient-to-br from-primary-50/30 via-white to-secondary-50/20 border-t border-primary-200/50">
         <div className="max-w-7xl mx-auto py-12 px-4 overflow-hidden sm:px-6 lg:px-8">
           <nav className="-mx-5 -my-2 flex flex-wrap justify-center">
             <div className="px-5 py-2">
-              <a href="#" className="text-base text-gray-500 hover:text-gray-900">
+              <a href="#" className="text-base text-primary-600 hover:text-primary-800 transition-colors duration-200">
                 About
               </a>
             </div>
             <div className="px-5 py-2">
-              <a href="#" className="text-base text-gray-500 hover:text-gray-900">
+              <a href="#" className="text-base text-primary-600 hover:text-primary-800 transition-colors duration-200">
                 Blog
               </a>
             </div>
             <div className="px-5 py-2">
-              <a href="#" className="text-base text-gray-500 hover:text-gray-900">
+              <a href="#" className="text-base text-primary-600 hover:text-primary-800 transition-colors duration-200">
                 Jobs
               </a>
             </div>
             <div className="px-5 py-2">
-              <a href="#" className="text-base text-gray-500 hover:text-gray-900">
+              <a href="#" className="text-base text-primary-600 hover:text-primary-800 transition-colors duration-200">
                 Press
               </a>
             </div>
             <div className="px-5 py-2">
-              <a href="#" className="text-base text-gray-500 hover:text-gray-900">
+              <a href="#" className="text-base text-primary-600 hover:text-primary-800 transition-colors duration-200">
                 Privacy
               </a>
             </div>
@@ -822,25 +618,24 @@ const LandingPage = () => {
               </a>
             </div>
             <div className="px-5 py-2">
-              <a href="#" className="text-base text-gray-500 hover:text-gray-900">
+              <a href="#" className="text-base text-primary-600 hover:text-primary-800 transition-colors duration-200">
                 Contact
               </a>
             </div>
           </nav>
-          <p className="mt-8 text-center text-base text-gray-400">
+          <p className="mt-8 text-center text-base text-primary-500">
             &copy; 2025 DataVizPro, Inc. All rights reserved.
           </p>
         </div>
       </footer>
-    </div>
 
-    {/* Feature Modal */}
     <FeatureModal
       isOpen={isModalOpen}
       onClose={closeModal}
       feature={modalFeature}
     />
-    </>
+
+    </React.Fragment>
   );
 };
 
