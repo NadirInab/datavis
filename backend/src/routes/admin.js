@@ -40,6 +40,37 @@ router.delete('/db/clear', clearCollection);
 router.get('/db/migrations', getMigrationStatus);
 router.post('/db/migrate', runMigrations);
 
+// File management routes
+router.post('/files/cleanup', async (req, res) => {
+  try {
+    const schedulerService = require('../services/schedulerService');
+    const result = await schedulerService.triggerFileCleanup();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/files/optimize', async (req, res) => {
+  try {
+    const schedulerService = require('../services/schedulerService');
+    const result = await schedulerService.triggerStorageOptimization();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/scheduler/status', async (req, res) => {
+  try {
+    const schedulerService = require('../services/schedulerService');
+    const status = schedulerService.getStatus();
+    res.json({ success: true, status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // User management routes
 router.get('/users', getAllUsers);
 router.put('/users/:id/status', updateUserStatus);

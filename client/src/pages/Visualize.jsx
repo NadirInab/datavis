@@ -2,6 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/FirebaseAuthContext';
 import { fileAPI, userAPI } from '../services/api';
+import fileService from '../services/fileService';
+import { useCollaboration } from '../hooks/useCollaboration';
+import CollaborationPanel from '../components/collaboration/CollaborationPanel';
+import { CursorManager } from '../components/collaboration/CollaborativeCursor';
+import AnnotationSystem from '../components/collaboration/AnnotationSystem';
+import ConnectionStatus from '../components/collaboration/ConnectionStatus';
+import ShareButton from '../components/sharing/ShareButton';
 import ExportMenu from '../components/ExportMenu';
 import Button, { Icons, ButtonGroup } from '../components/ui/Button';
 import { ChartCard } from '../components/ui/Card';
@@ -34,13 +41,8 @@ const Visualize = () => {
     // Continue with null currentUser
   }
 
-  // Add a safety check - allow visitors
-  useEffect(() => {
-    if (!currentUser && !isVisitor()) {
-      console.log("No authenticated user or visitor found, redirecting to login");
-      navigate('/signin', { state: { from: `/visualize/${fileId}` } });
-    }
-  }, [currentUser, navigate, fileId]);
+  // Remove the redirect logic - let ProtectedRoute handle authentication
+  // Visitors should be able to access visualization features
   
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +55,142 @@ const Visualize = () => {
   });
   const [error, setError] = useState('');
   const [exportMessage, setExportMessage] = useState('');
+
+  // Collaboration state
+  const [showAnnotations, setShowAnnotations] = useState(true);
+  const [showVoiceComments, setShowVoiceComments] = useState(true);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  // Initialize collaboration (with error boundary)
+  const collaboration = useCollaboration(fileId) || {
+    isConnected: false,
+    collaborators: [],
+    annotations: [],
+    voiceComments: [],
+    cursors: new Map(),
+    followMode: null,
+    isFollowing: false,
+    sendCursorMove: () => {},
+    sendChartInteraction: () => {},
+    addAnnotation: () => {},
+    removeAnnotation: () => {},
+    addVoiceComment: () => {},
+    startFollowMode: () => {},
+    stopFollowMode: () => {}
+  };
+
+  // Mouse tracking for collaboration
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      const newPosition = { x: e.clientX, y: e.clientY };
+      setMousePosition(newPosition);
+
+      // Send cursor position to other users
+      if (collaboration.isConnected) {
+        collaboration.sendCursorMove(newPosition.x, newPosition.y, activeVizIndex);
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => document.removeEventListener('mousemove', handleMouseMove);
+  }, [collaboration.isConnected, collaboration.sendCursorMove, activeVizIndex]);
+
+  // Collaboration handlers
+  const handleToggleAnnotations = () => {
+    setShowAnnotations(!showAnnotations);
+  };
+
+  const handleToggleVoiceComments = () => {
+    setShowVoiceComments(!showVoiceComments);
+  };
+
+  const handleStartFollowMode = (leaderId) => {
+    collaboration.startFollowMode(leaderId);
+  };
+
+  const handleStopFollowMode = () => {
+    collaboration.stopFollowMode();
+  };
+
+  // Share handler
+  const handleCreateShare = async (fileId, settings) => {
+    try {
+      console.log('🔐 Creating share link for file:', fileId);
+      console.log('👤 Current user:', currentUser);
+
+      // Check if user is authenticated
+      if (!currentUser) {
+        throw new Error('Please sign in to create share links');
+      }
+
+      // Get Firebase ID token with multiple fallback methods
+      let idToken = '';
+      try {
+        if (currentUser.getIdToken && typeof currentUser.getIdToken === 'function') {
+          idToken = await currentUser.getIdToken(true); // Force refresh
+          console.log('✅ Got ID token via getIdToken()');
+        } else if (currentUser.accessToken) {
+          idToken = currentUser.accessToken;
+          console.log('✅ Using accessToken');
+        } else if (currentUser.uid) {
+          // For development/testing - create a mock token
+          idToken = `mock-token-${currentUser.uid}`;
+          console.log('⚠️ Using mock token for development');
+        } else {
+          throw new Error('Unable to get authentication token');
+        }
+      } catch (tokenError) {
+        console.error('❌ Token retrieval failed:', tokenError);
+        throw new Error('Authentication failed. Please sign in again.');
+      }
+
+      console.log('🌐 Making API request to create share link...');
+      const response = await fetch(`/api/v1/sharing/${fileId}/create`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+      });
+
+      console.log('📡 Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', errorText);
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('📦 Response data:', data);
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to create share link');
+      }
+
+      console.log('✅ Share link created successfully:', data.shareInfo.shareUrl);
+
+      // Update file state with sharing info
+      setFile(prev => ({
+        ...prev,
+        sharing: {
+          isShared: true,
+          shareUrl: data.shareInfo.shareUrl,
+          shareToken: data.shareInfo.shareToken,
+          permissions: data.shareInfo.permissions
+        }
+      }));
+
+      return {
+        success: true,
+        shareInfo: data.shareInfo
+      };
+    } catch (error) {
+      console.error('❌ Error creating share link:', error);
+      throw error;
+    }
+  };
   const [chartLoading, setChartLoading] = useState(false);
   
   const chartTypes = [
@@ -76,62 +214,21 @@ const Visualize = () => {
       try {
         let fileData = null;
 
-        // Try to get file from API first
+        // Use the unified file service for smart file loading
         try {
-          if (currentUser) {
-            // Authenticated user - get file from API
-            const response = await fileAPI.getFile(fileId);
-            if (response.success && response.file) {
-              // Transform backend file format to frontend format
-              fileData = {
-                id: response.file._id,
-                _id: response.file._id,
-                name: response.file.filename,
-                size: response.file.size,
-                type: response.file.mimetype,
-                format: response.file.dataInfo?.headers ? 'csv' : 'unknown',
-                uploadedAt: response.file.uploadedAt,
-                rows: response.file.dataInfo?.rows || 0,
-                columns: response.file.dataInfo?.headers || [],
-                columnCount: response.file.dataInfo?.columns || 0,
-                columnTypes: response.file.dataInfo?.statistics || {},
-                visualizations: response.file.visualizations || [],
-                data: response.file.data || []
-              };
-            }
-          } else if (isVisitor()) {
-            // Visitor - try API first, then fallback to localStorage
-            try {
-              const response = await fileAPI.getFile(fileId);
-              if (response.success && response.file) {
-                // Transform backend file format to frontend format
-                fileData = {
-                  id: response.file._id,
-                  _id: response.file._id,
-                  name: response.file.filename,
-                  size: response.file.size,
-                  type: response.file.mimetype,
-                  format: response.file.dataInfo?.headers ? 'csv' : 'unknown',
-                  uploadedAt: response.file.uploadedAt,
-                  rows: response.file.dataInfo?.rows || 0,
-                  columns: response.file.dataInfo?.headers || [],
-                  columnCount: response.file.dataInfo?.columns || 0,
-                  columnTypes: response.file.dataInfo?.statistics || {},
-                  visualizations: response.file.visualizations || [],
-                  data: response.file.data || []
-                };
-              }
-            } catch (apiError) {
-              // Fallback to localStorage for visitors
-              const userId = localStorage.getItem('sessionId') || 'visitor-session';
-              const filesData = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
-              fileData = filesData.find(f => f.id === fileId || f._id === fileId);
-            }
-          }
-        } catch (apiError) {
-          console.warn('API call failed, trying localStorage fallback:', apiError);
+          console.log('🔄 Loading file using unified file service...');
+          const result = await fileService.getFile(fileId, currentUser, isVisitor);
+          fileData = result.file;
 
-          // Fallback to localStorage
+          console.log('📊 File loaded successfully:', {
+            source: result.source,
+            hasFile: !!fileData,
+            fileName: fileData?.name,
+            visualizations: fileData?.visualizations?.length || 0
+          });
+        } catch (serviceError) {
+          console.error('File service error:', serviceError);
+          // Final fallback to direct localStorage access
           const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
           const filesData = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
           fileData = filesData.find(f => f.id === fileId || f._id === fileId);
@@ -311,51 +408,86 @@ const Visualize = () => {
     return data;
   }, [file, activeVizIndex]);
   
-  const handleCreateVisualization = (vizData) => {
+  const handleCreateVisualization = async (vizData) => {
     if (!file) return;
 
     setChartLoading(true);
     setError('');
 
     try {
-      // Add the new visualization
+      // For registered users, try to save to database first
+      if (currentUser && !isVisitor()) {
+        try {
+          console.log('🔄 Saving visualization to database for registered user...');
+          const response = await fileAPI.createVisualization(fileId, vizData);
+
+          if (response.success) {
+            console.log('✅ Visualization saved to database successfully');
+
+            // Update local state with the response from database
+            const updatedFile = {
+              ...file,
+              visualizations: [...(file.visualizations || []), response.visualization]
+            };
+
+            setFile(updatedFile);
+            setActiveVizIndex(updatedFile.visualizations.length - 1);
+            setActiveTab('visualize');
+            setError('');
+
+            // Reset custom viz form
+            setCustomViz({
+              type: 'bar',
+              title: '',
+              columns: {}
+            });
+
+            return; // Success - exit early
+          }
+        } catch (apiError) {
+          console.warn('⚠️ Database save failed, falling back to localStorage:', apiError);
+          // Fall through to localStorage backup
+        }
+      }
+
+      // Fallback to localStorage using file service
+      console.log('💾 Saving visualization using file service...');
       const newViz = {
         ...vizData,
-        id: Date.now(),
+        id: Date.now().toString(),
         createdAt: new Date().toISOString()
       };
 
-      const userId = currentUser?.id || (isVisitor() ? (localStorage.getItem('sessionId') || 'visitor-session') : 'anonymous');
-      const filesData = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
-      const fileIndex = filesData.findIndex(f => f.id === fileId);
-
-      if (fileIndex === -1) {
-        setError('File not found');
-        return;
-      }
-
+      // Update file with new visualization
       const updatedFile = {
-        ...filesData[fileIndex],
-        visualizations: [...(filesData[fileIndex].visualizations || []), newViz]
+        ...file,
+        visualizations: [...(file.visualizations || []), newViz]
       };
 
-      filesData[fileIndex] = updatedFile;
-      localStorage.setItem(`files_${userId}`, JSON.stringify(filesData));
+      // Use file service to update the file
+      try {
+        await fileService.updateFile(fileId, { visualizations: updatedFile.visualizations }, currentUser, isVisitor);
 
-      // Update local state
-      setFile(updatedFile);
-      setActiveVizIndex(updatedFile.visualizations.length - 1);
-      setActiveTab('visualize');
-      setError('');
+        // Update local state
+        setFile(updatedFile);
+        setActiveVizIndex(updatedFile.visualizations.length - 1);
+        setActiveTab('visualize');
+        setError('');
 
-      // Reset custom viz form
-      setCustomViz({
-        type: 'bar',
-        title: '',
-        columns: {}
-      });
+        // Reset custom viz form
+        setCustomViz({
+          type: 'bar',
+          title: '',
+          columns: {}
+        });
+
+        console.log('✅ Visualization saved successfully using file service');
+      } catch (updateError) {
+        console.error('Failed to update file with new visualization:', updateError);
+        setError('Failed to save visualization. Please try again.');
+      }
     } catch (error) {
-      console.error('Error creating visualization:', error);
+      console.error('❌ Error creating visualization:', error);
       setError('Failed to create visualization. Please try again.');
     } finally {
       setChartLoading(false);
@@ -503,7 +635,32 @@ const Visualize = () => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in relative">
+      {/* Collaboration Components */}
+      {currentUser && !isVisitor() && (
+        <>
+          <CollaborationPanel
+            collaborators={collaboration.collaborators}
+            isConnected={collaboration.isConnected}
+            annotations={collaboration.annotations}
+            voiceComments={collaboration.voiceComments}
+            followMode={collaboration.followMode}
+            isFollowing={collaboration.isFollowing}
+            onStartFollowMode={handleStartFollowMode}
+            onStopFollowMode={handleStopFollowMode}
+            onToggleAnnotations={handleToggleAnnotations}
+            onToggleVoiceComments={handleToggleVoiceComments}
+            showAnnotations={showAnnotations}
+            showVoiceComments={showVoiceComments}
+          />
+
+          <CursorManager
+            cursors={collaboration.cursors}
+            collaborators={collaboration.collaborators}
+          />
+        </>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">{file.name}</h1>
@@ -517,19 +674,65 @@ const Visualize = () => {
             onClick={() => navigate('/app/files')}
             variant="outline"
             icon={Icons.ArrowLeft}
+            size="sm"
           >
             Back to Files
           </Button>
+
+          {/* Enhanced Share Button - Only for file owners */}
+          {currentUser && !isVisitor() && (
+            <div className="relative">
+              <ShareButton
+                fileId={fileId}
+                fileName={file.name}
+                onShare={handleCreateShare}
+                isShared={file.sharing?.isShared}
+                shareUrl={file.sharing?.shareUrl}
+                className="shadow-lg"
+              />
+              {/* Development indicator */}
+              {import.meta.env.DEV && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"
+                     title="Share feature available" />
+              )}
+            </div>
+          )}
+
           <ExportMenu
             file={file}
             onExportStart={handleExportStart}
             onExportComplete={handleExportComplete}
             onExportError={handleExportError}
           />
+
+          {/* Connection Status - Only show for authenticated users */}
+          {currentUser && !isVisitor() && (
+            <ConnectionStatus
+              isConnected={collaboration.isConnected}
+              collaborators={collaboration.collaborators}
+              onRetry={() => window.location.reload()}
+            />
+          )}
         </div>
       </div>
       
-      <ChartCard className="overflow-hidden">
+      <ChartCard className="overflow-hidden relative">
+        {/* Annotation System Overlay */}
+        {currentUser && !isVisitor() && activeTab === 'visualize' && (
+          <AnnotationSystem
+            chartId={`chart-${activeVizIndex}`}
+            annotations={collaboration.annotations}
+            onAddAnnotation={collaboration.addAnnotation}
+            onRemoveAnnotation={collaboration.removeAnnotation}
+            onEditAnnotation={(id, text) => {
+              // Handle annotation editing if needed
+              console.log('Edit annotation:', id, text);
+            }}
+            currentUserId={currentUser.uid || currentUser.id}
+            isVisible={showAnnotations}
+          />
+        )}
+
         <div className="border-b border-gray-200 bg-gradient-to-r from-primary-50 to-secondary-50">
           <ButtonGroup className="w-full">
             <Button

@@ -21,6 +21,10 @@ import MockPaymentPage from "../pages/MockPaymentPage";
 import PaymentSuccessPage from "../pages/PaymentSuccessPage";
 import VisualizationTest from "../pages/VisualizationTest";
 import FileConversionHub from "../pages/FileConversionHub";
+import SharedFileViewer from "../pages/SharedFileViewer";
+import ShareFeatureGuide from "../components/debug/ShareFeatureGuide";
+import ShareTestPanel from "../components/debug/ShareTestPanel";
+import ShareButtonTest from "../components/debug/ShareButtonTest";
 import FingerprintDebug from "../components/debug/FingerprintDebug";
 import GoogleSignInTest from "../components/testing/GoogleSignInTest";
 import NotFound from "../pages/NotFound";
@@ -52,6 +56,30 @@ const AppRoutes = () => {
         path="/convert"
         element={<FileConversionHub />}
       />
+
+      {/* Shared File Viewer - Public route with optional auth */}
+      <Route
+        path="/shared/:fileId/:shareToken"
+        element={<SharedFileViewer />}
+      />
+
+      {/* Development Testing Routes */}
+      {import.meta.env.DEV && (
+        <>
+          <Route
+            path="/test/share-guide"
+            element={<ShareFeatureGuide />}
+          />
+          <Route
+            path="/test/share-test"
+            element={<ShareTestPanel />}
+          />
+          <Route
+            path="/test/share-button"
+            element={<ShareButtonTest />}
+          />
+        </>
+      )}
 
       <Route
         path="/signin"

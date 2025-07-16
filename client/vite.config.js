@@ -11,7 +11,21 @@ export default defineConfig({
         target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
+      },
+      // Proxy Socket.IO connections
+      '/socket.io': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+        secure: false,
+        ws: true, // Enable WebSocket proxying
       }
     }
-  }
+  },
+  // Ensure environment variables are properly typed
+  define: {
+    // Make sure process.env is not accidentally used
+    'process.env': {}
+  },
+  // Environment variable configuration
+  envPrefix: 'VITE_'
 })

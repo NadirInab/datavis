@@ -8,7 +8,8 @@ const {
   getFiles,
   getFileDetails,
   deleteFile,
-  downloadFile
+  downloadFile,
+  createVisualization
 } = require('../controllers/fileController');
 
 // @route   POST /api/v1/files/upload
@@ -48,11 +49,6 @@ router.get('/download/:token', downloadFile);
 // @route   POST /api/v1/files/:id/visualize
 // @desc    Create visualization
 // @access  Private
-router.post('/:id/visualize', protect, (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Create visualization endpoint - to be implemented in next phase'
-  });
-});
+router.post('/:id/visualize', protect, createVisualization);
 
 module.exports = router;

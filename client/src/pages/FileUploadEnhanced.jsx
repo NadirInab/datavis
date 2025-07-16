@@ -18,6 +18,7 @@ import {
   getUserMetrics
 } from '../utils/rateLimiting';
 import SignupPrompt from '../components/guest/SignupPrompt';
+import fileService from '../services/fileService';
 import GuestMetrics from '../components/guest/GuestMetrics';
 
 const FileUploadEnhanced = () => {
@@ -477,6 +478,10 @@ const FileUploadEnhanced = () => {
       const recommendedVisualizations = recommendVisualizations(parsedData.data, parsedData.columnAnalysis);
 
       const fileId = Date.now().toString();
+      // Apply smart data sampling based on user type and storage limits
+      const maxDataRows = isVisitor() ? 500 : (currentUser?.subscription?.tier === 'premium' ? 5000 : 1000);
+      const sampledData = parsedData.data.slice(0, maxDataRows);
+
       const fileRecord = {
         id: fileId,
         name: file.name,
@@ -489,13 +494,50 @@ const FileUploadEnhanced = () => {
         columnCount: parsedData.headers.length, // Store count separately
         columnTypes: parsedData.columnAnalysis,
         visualizations: recommendedVisualizations,
-        data: parsedData.data.slice(0, 1000),
-        visitorId: visitorId // Include visitor ID for tracking
+        data: sampledData,
+        visitorId: visitorId, // Include visitor ID for tracking
+        samplingInfo: sampledData.length < parsedData.data.length ? {
+          originalRows: parsedData.rowCount,
+          sampledRows: sampledData.length,
+          samplingMethod: 'truncation'
+        } : null
       };
 
-      const userId = currentUser?.id || (isVisitor() ? visitorId || 'visitor-session' : 'anonymous');
-      const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
-      localStorage.setItem(`files_${userId}`, JSON.stringify([...existingFiles, fileRecord]));
+      // Use smart file service to handle storage
+      try {
+        await fileService.saveFile(fileRecord, currentUser, isVisitor);
+        console.log('✅ File saved successfully using smart file service');
+      } catch (storageError) {
+        console.error('❌ Smart file service failed, attempting localStorage fallback:', storageError);
+
+        // Fallback: Try to save with even smaller data sample
+        const fallbackRecord = {
+          ...fileRecord,
+          data: sampledData.slice(0, 100), // Emergency fallback to 100 rows
+          samplingInfo: {
+            originalRows: parsedData.rowCount,
+            sampledRows: 100,
+            samplingMethod: 'emergency_fallback'
+          }
+        };
+
+        try {
+          const userId = currentUser?.id || (isVisitor() ? visitorId || 'visitor-session' : 'anonymous');
+          const existingFiles = JSON.parse(localStorage.getItem(`files_${userId}`) || '[]');
+
+          // Check localStorage space before saving
+          const testData = JSON.stringify([...existingFiles, fallbackRecord]);
+          if (testData.length > 4.5 * 1024 * 1024) { // 4.5MB limit to be safe
+            throw new Error('Storage quota would be exceeded');
+          }
+
+          localStorage.setItem(`files_${userId}`, testData);
+          console.log('⚠️ File saved with emergency fallback (100 rows only)');
+        } catch (fallbackError) {
+          console.error('❌ Emergency fallback also failed:', fallbackError);
+          throw new Error('Storage quota exceeded. Please delete some files or upgrade your account for more storage.');
+        }
+      }
 
       // Record upload for metrics
       if (isVisitor() || !currentUser) {

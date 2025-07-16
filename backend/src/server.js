@@ -18,6 +18,7 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const fileRoutes = require('./routes/files');
 const subscriptionRoutes = require('./routes/subscriptions');
+const sharingRoutes = require('./routes/sharing');
 
 const adminRoutes = require('./routes/admin');
 
@@ -153,6 +154,7 @@ app.use('/api/v1/auth', authLimiter, authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/files', fileRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/sharing', sharingRoutes);
 app.use('/api/v1/admin', adminLimiter, adminRoutes);
 
 // 404 handler
@@ -171,6 +173,23 @@ console.log('Starting server on port:', PORT);
 
 const server = app.listen(PORT, () => {
   logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+
+  // Initialize scheduler service
+  try {
+    const schedulerService = require('./services/schedulerService');
+    schedulerService.init();
+  } catch (error) {
+    logger.error('Failed to initialize scheduler service:', error);
+  }
+
+  // Initialize collaboration service
+  try {
+    const collaborationService = require('./services/collaborationService');
+    collaborationService.initialize(server);
+    logger.info('Collaboration service initialized');
+  } catch (error) {
+    logger.error('Failed to initialize collaboration service:', error);
+  }
 });
 
 // Handle unhandled promise rejections

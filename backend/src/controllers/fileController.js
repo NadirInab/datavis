@@ -3,6 +3,7 @@ const File = require('../models/File');
 const User = require('../models/User');
 const fileStorageService = require('../services/fileStorageService');
 const dataProcessingService = require('../services/dataProcessingService');
+const fileManagementService = require('../services/fileManagementService');
 const logger = require('../utils/logger');
 const { FILE_STATUS, FILE_CONSTRAINTS, HTTP_STATUS } = require('../utils/constants');
 
@@ -35,6 +36,29 @@ const uploadFile = async (req, res) => {
     const user = req.user;
     const visitor = req.visitor;
     const sessionId = req.sessionId;
+
+    // Check file upload permissions with smart file management
+    const uploadCheck = await fileManagementService.canUserUploadFile(user || visitor, file.size);
+    if (!uploadCheck.canUpload) {
+      // Clean up uploaded file
+      try {
+        await require('fs').promises.unlink(file.path);
+      } catch (cleanupError) {
+        logger.warn('Failed to cleanup rejected file:', cleanupError);
+      }
+
+      const errorMessages = {
+        file_too_large: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds limit of ${Math.round(uploadCheck.limit / 1024 / 1024)}MB for your subscription tier.`,
+        file_limit_reached: `File limit reached (${uploadCheck.current}/${uploadCheck.limit}). Please delete some files or upgrade your subscription.`
+      };
+
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: errorMessages[uploadCheck.reason] || 'Upload not allowed',
+        error: uploadCheck.reason,
+        limits: uploadCheck
+      });
+    }
 
     // Parse metadata if provided
     let clientMetadata = {};
@@ -105,31 +129,49 @@ const uploadFile = async (req, res) => {
       userAgent: req.get('User-Agent')
     });
 
-    // Process the CSV data
+    // Process the CSV data with smart file management
     try {
       const parseResult = validation.parseResult;
-      
+
+      // Apply intelligent data sampling based on user tier
+      const sampledData = fileManagementService.applyDataSampling(parseResult.data, user || visitor);
+
+      // Compress metadata to reduce storage size
+      const compressedMetadata = fileManagementService.compressFileMetadata(parseResult.metadata);
+
       // Update file record with processed data
       fileRecord.dataInfo = {
         rows: parseResult.totalRows,
         columns: parseResult.totalColumns,
-        headers: parseResult.metadata.headers,
-        sampleData: parseResult.metadata.sampleData,
-        statistics: parseResult.metadata.statistics
+        headers: compressedMetadata.headers,
+        sampleData: compressedMetadata.sampleData,
+        statistics: compressedMetadata.statistics,
+        // Add sampling info for transparency
+        samplingInfo: sampledData.length < parseResult.data.length ? {
+          originalRows: parseResult.totalRows,
+          sampledRows: sampledData.length,
+          samplingMethod: 'systematic'
+        } : null
       };
-      
-      // Store processed data (limit size for database storage)
-      const maxDataRows = user?.subscription?.tier === 'enterprise' ? 10000 : 1000;
-      fileRecord.data = parseResult.data.slice(0, maxDataRows);
+
+      // Store the sampled data
+      fileRecord.data = sampledData;
 
       // Add visualizations from client metadata if provided
       if (clientMetadata.visualizations && Array.isArray(clientMetadata.visualizations)) {
         fileRecord.visualizations = clientMetadata.visualizations;
       }
-      
+
       fileRecord.status = FILE_STATUS.READY;
       fileRecord.processingProgress = 100;
       fileRecord.processedAt = new Date();
+
+      logger.info('File processed with smart management:', {
+        fileId: fileRecord._id,
+        originalRows: parseResult.totalRows,
+        storedRows: sampledData.length,
+        userTier: fileManagementService.getUserFileLimits(user || visitor)
+      });
 
     } catch (processingError) {
       logger.error('File processing error:', processingError);
@@ -224,13 +266,56 @@ const uploadFile = async (req, res) => {
  */
 const getFiles = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, sortBy = 'uploadedAt', sortOrder = 'desc' } = req.query;
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      sortBy = 'uploadedAt',
+      sortOrder = 'desc',
+      search,
+      dateFrom,
+      dateTo,
+      minSize,
+      maxSize
+    } = req.query;
     const user = req.user;
 
-    // Build query
+    // Build query with enhanced filtering
     const query = { ownerUid: user.firebaseUid };
+
+    // Status filter
     if (status) {
       query.status = status;
+    }
+
+    // Search filter (filename or original name)
+    if (search) {
+      query.$or = [
+        { filename: { $regex: search, $options: 'i' } },
+        { originalName: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.uploadedAt = {};
+      if (dateFrom) {
+        query.uploadedAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        query.uploadedAt.$lte = new Date(dateTo);
+      }
+    }
+
+    // Size range filter
+    if (minSize || maxSize) {
+      query.size = {};
+      if (minSize) {
+        query.size.$gte = parseInt(minSize);
+      }
+      if (maxSize) {
+        query.size.$lte = parseInt(maxSize);
+      }
     }
 
     // Build sort object
@@ -243,11 +328,14 @@ const getFiles = async (req, res) => {
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit))
-      .select('-data') // Exclude large data field from list
+      .select('-data -visualizations.config') // Exclude large fields from list
       .lean();
 
     // Get total count
     const total = await File.countDocuments(query);
+
+    // Get user storage stats
+    const storageStats = await fileManagementService.getUserStorageStats(user);
 
     // Calculate pagination info
     const totalPages = Math.ceil(total / limit);
@@ -264,7 +352,8 @@ const getFiles = async (req, res) => {
         hasNextPage,
         hasPrevPage,
         limit: parseInt(limit)
-      }
+      },
+      storageStats
     });
 
   } catch (error) {
@@ -512,10 +601,71 @@ async function updateVisitorFileUsage(visitor, fileRecord) {
   }
 }
 
+// Create visualization for a file
+const createVisualization = async (req, res) => {
+  try {
+    const { id: fileId } = req.params;
+    const visualizationData = req.body;
+    const user = req.user;
+
+    // Validate required fields
+    if (!visualizationData.type || !visualizationData.title || !visualizationData.columns) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: type, title, and columns are required'
+      });
+    }
+
+    // Find the file
+    const file = await File.findById(fileId);
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found'
+      });
+    }
+
+    // Check if user owns the file
+    if (file.ownerUid !== user.firebaseUid) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this file'
+      });
+    }
+
+    // Add visualization using the model method
+    const newVisualization = file.addVisualization(visualizationData);
+
+    // Save the file with the new visualization
+    await file.save();
+
+    logger.info('Visualization created successfully:', {
+      fileId: file._id,
+      visualizationId: newVisualization.id,
+      userId: user.firebaseUid
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Visualization created successfully',
+      visualization: newVisualization
+    });
+
+  } catch (error) {
+    logger.error('Create visualization error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create visualization',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 module.exports = {
   uploadFile,
   getFiles,
   getFileDetails,
   deleteFile,
-  downloadFile
+  downloadFile,
+  createVisualization
 };

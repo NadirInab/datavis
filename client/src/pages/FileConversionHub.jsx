@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import { useNavigate } from 'react-router-dom';
 import {
   Upload, FileText, Download, ArrowRight, Zap, Shield, Clock,
-  CheckCircle, AlertCircle, X, FileCheck, Loader2, Info
+  CheckCircle, AlertCircle, X, FileCheck, Loader2, Info, Home
 } from 'lucide-react';
 import { CONVERSION_FORMATS, getFormatsByCategory } from '../utils/fileConverter';
 import { parseFile } from '../utils/fileParser';
@@ -15,6 +16,7 @@ import Card from '../components/ui/Card';
 import { useConversionLimits, trackConversionLimitEvent } from '../utils/conversionLimits';
 
 const FileConversionHub = () => {
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileData, setFileData] = useState(null);
   const [showConverter, setShowConverter] = useState(false);
@@ -276,8 +278,44 @@ const FileConversionHub = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-highlight-50/20 via-white to-primary-50/10">
+      {/* Navigation Header */}
+      <div className="relative z-50 px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex justify-between items-center"
+          >
+            {/* Back to Home Button */}
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                onClick={() => navigate('/')}
+                variant="outline"
+                className="group border-primary-200 text-primary-700 hover:bg-primary-50 hover:border-primary-300 transition-all duration-300 shadow-sm hover:shadow-md focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                icon={Home}
+                aria-label="Navigate back to home page"
+              >
+                <span className="hidden sm:inline group-hover:text-primary-800 transition-colors duration-200">Back to Home</span>
+                <span className="sm:hidden group-hover:text-primary-800 transition-colors duration-200">Home</span>
+              </Button>
+            </motion.div>
+
+            {/* Page Title Badge */}
+            <div className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 border border-primary-200 shadow-sm">
+              <FileText className="w-4 h-4 text-primary-600" />
+              <span className="text-sm font-medium text-primary-700">File Converter</span>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
       {/* Enhanced Hero Section */}
-      <section className="relative py-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <section className="relative py-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-20 right-10 w-72 h-72 bg-gradient-to-br from-primary-200/20 to-secondary-200/10 rounded-full blur-3xl"></div>
