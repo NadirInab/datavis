@@ -599,6 +599,7 @@ const LandingPage = () => {
 
   return (
     <React.Fragment>
+    
       <SEOHead
         pageKey="home"
         customTitle="CSV Analytics Studio - Professional Data Visualization & Business Intelligence Dashboard"
@@ -607,13 +608,13 @@ const LandingPage = () => {
         structuredData={generateSiteStructuredData()}
       />
 
-      <div
+      {/* <div
         className="min-h-screen relative overflow-hidden"
         style={{
           background: 'linear-gradient(to bottom right, #FAFFCA, #dbeeed, #c5e1cf)'
         }}
       >
-        {/* Enhanced floating background elements */}
+        </div> */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
             className="absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-pulse"
@@ -648,16 +649,13 @@ const LandingPage = () => {
           ></div>
         </div>
 
-        {/* Modern Animated Hero Section */}
         <AnimatedHero />
 
-        {/* Demo Preview Section */}
         <section
           className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20"
           itemScope
           itemType="https://schema.org/WebPageElement"
         >
-          {/* Demo preview */}
           <article className="mt-16 relative">
             <div
               id="upload-demo"
@@ -668,7 +666,6 @@ const LandingPage = () => {
                 ringColor: 'rgba(156, 202, 171, 0.4)'
               }}
             >
-                {/* Data Visualization Preview */}
                 <div
                   className="aspect-video rounded-2xl p-6 relative overflow-hidden border"
                   style={{
@@ -676,7 +673,6 @@ const LandingPage = () => {
                     borderColor: 'rgba(143, 196, 193, 0.6)'
                   }}
                 >
-                  {/* Enhanced Preview Title */}
                   <motion.div
                     className="text-center mb-8"
                     initial={{ opacity: 0, y: 20 }}
@@ -753,10 +749,8 @@ const LandingPage = () => {
                     </motion.div>
                   </motion.div>
 
-                  {/* Enhanced Sample Visualizations Grid */}
                   <EnhancedVisualizationsGrid />
 
-                  {/* Enhanced Call to Action */}
                   <motion.div
                     className="absolute bottom-6 right-6"
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -800,18 +794,20 @@ const LandingPage = () => {
                     </motion.button>
                   </motion.div>
                 </div>
-              </div>
+
+
             </div>
+
+
           </article>
         </section>
-      </div>
+      
 
       <TestimonialsSection />
 
       
       <ModernPricing />
 
-      {/* SEO-Optimized FAQ Section */}
       <FAQSection
         faqs={[
           {
@@ -850,7 +846,6 @@ const LandingPage = () => {
         title="Frequently Asked Questions About CSV Analytics"
       />
 
-      {/* SEO Content Section - Industry Use Cases */}
       <SEOFeatureSection
         title="Industry-Leading Data Visualization Solutions"
         description="Trusted by professionals across industries for powerful CSV analytics, business intelligence dashboards, and data-driven decision making. Transform your spreadsheet data into actionable insights."
@@ -1193,8 +1188,7 @@ const LandingPage = () => {
         feature={modalFeature}
       />
 
-      {/* SEO Performance Monitoring (Development only) */}
-      <SEOMonitor pageData={{ title: 'CSV Analytics Studio', description: 'Professional data visualization platform' }} />
+      {/* <SEOMonitor pageData={{ title: 'CSV Analytics Studio', description: 'Professional data visualization platform' }} /> */}
 
     </React.Fragment>
   );

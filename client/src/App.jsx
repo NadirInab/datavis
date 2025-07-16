@@ -12,7 +12,7 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <AppRoutes />
-          <LoadingDiagnostic />
+          {/* <LoadingDiagnostic /> */}
         </BrowserRouter>
       </AuthProvider>
     </HelmetProvider>
