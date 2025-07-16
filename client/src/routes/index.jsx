@@ -20,6 +20,7 @@ import SubscriptionPlansPage from "../pages/SubscriptionPlansPage";
 import MockPaymentPage from "../pages/MockPaymentPage";
 import PaymentSuccessPage from "../pages/PaymentSuccessPage";
 import VisualizationTest from "../pages/VisualizationTest";
+import FileConversionHub from "../pages/FileConversionHub";
 import FingerprintDebug from "../components/debug/FingerprintDebug";
 import GoogleSignInTest from "../components/testing/GoogleSignInTest";
 import NotFound from "../pages/NotFound";
@@ -44,6 +45,12 @@ const AppRoutes = () => {
       <Route
         path="/"
         element={<LandingPage />}
+      />
+
+      {/* File Conversion Hub - Public route */}
+      <Route
+        path="/convert"
+        element={<FileConversionHub />}
       />
 
       <Route

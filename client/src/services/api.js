@@ -314,6 +314,43 @@ export const fileAPI = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Convert file to different formats
+  convertFile: async (fileId, targetFormat, options = {}) => {
+    try {
+      console.log(`🔄 Converting file ${fileId} to ${targetFormat}...`);
+      const response = await api.post(`/files/${fileId}/convert`, {
+        targetFormat,
+        options
+      });
+      return response.data;
+    } catch (error) {
+      console.error('🚨 File conversion error:', error.response?.data || error.message);
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get available conversion formats for a file
+  getConversionFormats: async (fileId) => {
+    try {
+      const response = await api.get(`/files/${fileId}/conversion-formats`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Download converted file
+  downloadConvertedFile: async (fileId, format) => {
+    try {
+      const response = await api.get(`/files/${fileId}/download/${format}`, {
+        responseType: 'blob'
+      });
+      return response;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };
 

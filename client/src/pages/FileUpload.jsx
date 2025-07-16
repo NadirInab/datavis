@@ -21,6 +21,7 @@ import {
 } from '../utils/rateLimiting';
 import SignupPrompt from '../components/guest/SignupPrompt';
 import GuestMetrics from '../components/guest/GuestMetrics';
+import FileConverter from '../components/conversion/FileConverter';
 
 /**
  * UserDetails
@@ -198,6 +199,7 @@ const FileUpload = () => {
   const [showGoogleSheets, setShowGoogleSheets] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [metrics, setMetrics] = useState(null);
+  const [showConverter, setShowConverter] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const { showUpgradePrompt, UpgradePromptComponent } = useUpgradePrompt();
@@ -1203,9 +1205,9 @@ const FileUpload = () => {
                   </div>
                 )}
 
-                {/* Upload Button */}
+                {/* Action Buttons */}
                 {file && !loading && uploadStatus !== 'preview' && (
-                  <div className="mt-8 flex justify-center">
+                  <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                     <Button
                       onClick={handleUpload}
                       variant="primary"
@@ -1216,6 +1218,19 @@ const FileUpload = () => {
                     >
                       Analyze & Visualize Data
                     </Button>
+
+                    {parsedData && (
+                      <Button
+                        onClick={() => setShowConverter(true)}
+                        variant="outline"
+                        size="lg"
+                        icon={Icons.Download}
+                        iconPosition="left"
+                        className="px-8 border-secondary-500 text-secondary-700 hover:bg-secondary-50"
+                      >
+                        Convert File Format
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1290,6 +1305,23 @@ const FileUpload = () => {
           </div>
         </Card>
       </div>
+
+      {/* File Converter Modal */}
+      {showConverter && parsedData && (
+        <FileConverter
+          fileData={parsedData.data || parsedData}
+          fileName={file?.name}
+          onClose={() => setShowConverter(false)}
+        />
+      )}
+
+      {/* Signup Prompt */}
+      {showSignupPrompt && (
+        <SignupPrompt onClose={() => setShowSignupPrompt(false)} />
+      )}
+
+      {/* Upgrade Prompt */}
+      <UpgradePromptComponent />
     </div>
   );
 };

@@ -801,7 +801,78 @@ const LandingPage = () => {
 
           </article>
         </section>
-      
+
+
+      {/* File Conversion Feature Section */}
+      <section className="py-20 bg-gradient-to-br from-secondary-50/30 via-white to-accent-50/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-primary-900 mb-6">
+              Universal File Converter
+            </h2>
+            <p className="text-xl text-primary-600 max-w-3xl mx-auto mb-8">
+              Convert your data files to any format you need. Support for 10+ formats including
+              CSV, Excel, JSON, HTML, SQL, and more.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-12"
+          >
+            {[
+              { icon: '📊', name: 'CSV', desc: 'Comma-Separated' },
+              { icon: '📋', name: 'TSV', desc: 'Tab-Separated' },
+              { icon: '🌐', name: 'HTML', desc: 'Web Tables' },
+              { icon: '📈', name: 'Excel', desc: 'Spreadsheets' },
+              { icon: '📝', name: 'Markdown', desc: 'Documentation' },
+              { icon: '📄', name: 'LaTeX', desc: 'Academic Papers' },
+              { icon: '🗄️', name: 'SQL', desc: 'Database' },
+              { icon: '🔧', name: 'JSON', desc: 'Web APIs' },
+              { icon: '⚙️', name: 'YAML', desc: 'Configuration' },
+              { icon: '📰', name: 'XML', desc: 'Structured Data' }
+            ].map((format, index) => (
+              <motion.div
+                key={format.name}
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4, delay: index * 0.05 }}
+                viewport={{ once: true }}
+                className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-300 text-center"
+              >
+                <div className="text-3xl mb-2">{format.icon}</div>
+                <h4 className="font-semibold text-gray-800 text-sm mb-1">{format.name}</h4>
+                <p className="text-xs text-gray-600">{format.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            viewport={{ once: true }}
+            className="text-center"
+          >
+            <Link
+              to="/convert"
+              className="inline-flex items-center bg-gradient-to-r from-secondary-500 to-accent-500 text-white px-8 py-4 rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+            >
+              <Icons.ArrowRight className="w-5 h-5 mr-2" />
+              Try File Converter
+            </Link>
+          </motion.div>
+        </div>
+      </section>
 
       <TestimonialsSection />
 
