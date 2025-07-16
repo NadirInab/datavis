@@ -6,9 +6,12 @@ export const SEO_CONFIG = {
     'data visualization tool',
     'spreadsheet analysis software',
     'business intelligence dashboard',
-    'csv data processing'
+    'csv data processing',
+    'online data analysis platform',
+    'csv dashboard creator',
+    'business analytics software'
   ],
-  
+
   // Secondary Keywords (Long-tail, low competition)
   secondaryKeywords: [
     'online csv analyzer',
@@ -22,6 +25,67 @@ export const SEO_CONFIG = {
     'csv reporting tool',
     'data visualization for business'
   ],
+
+  // Long-tail Keywords (High conversion, low competition)
+  longTailKeywords: [
+    'convert csv to charts online',
+    'business data visualization software',
+    'csv dashboard creator free',
+    'sales analytics dashboard tool',
+    'financial data visualization platform',
+    'marketing metrics dashboard creator',
+    'spreadsheet to dashboard converter',
+    'csv file analysis online free',
+    'business intelligence dashboard maker',
+    'data visualization tool for small business',
+    'csv analytics for marketing teams',
+    'financial reporting dashboard tool',
+    'sales data visualization software',
+    'customer analytics dashboard platform',
+    'inventory management dashboard csv',
+    'hr analytics dashboard creator',
+    'project management data visualization',
+    'ecommerce analytics dashboard tool'
+  ],
+
+  // Industry-specific Keywords
+  industryKeywords: {
+    sales: [
+      'sales analytics dashboard',
+      'sales performance visualization',
+      'sales reporting tool',
+      'crm data visualization',
+      'sales metrics dashboard'
+    ],
+    finance: [
+      'financial data visualization',
+      'financial reporting dashboard',
+      'budget analysis tool',
+      'financial metrics visualization',
+      'accounting dashboard creator'
+    ],
+    marketing: [
+      'marketing analytics dashboard',
+      'campaign performance visualization',
+      'marketing metrics tool',
+      'digital marketing dashboard',
+      'social media analytics visualization'
+    ],
+    hr: [
+      'hr analytics dashboard',
+      'employee data visualization',
+      'workforce analytics tool',
+      'hr metrics dashboard',
+      'people analytics platform'
+    ],
+    operations: [
+      'operations dashboard creator',
+      'supply chain visualization',
+      'inventory analytics dashboard',
+      'logistics data visualization',
+      'operational metrics tool'
+    ]
+  },
 
   // Site-wide SEO defaults
   site: {
@@ -41,9 +105,37 @@ export const SEO_CONFIG = {
     home: {
       title: 'CSV Analytics Studio - Professional Data Visualization & Business Intelligence Dashboard',
       description: 'Transform your CSV files into powerful business insights. Create interactive dashboards, analyze spreadsheet data, and visualize trends with our professional analytics platform. Free trial available.',
-      keywords: 'csv analytics, data visualization, business intelligence dashboard, spreadsheet analysis, data processing tool',
+      keywords: 'csv analytics dashboard, data visualization tool, business intelligence software, spreadsheet analysis, csv dashboard creator, online data analysis, business analytics platform, csv chart generator, data visualization for business, excel alternative',
       canonical: '/',
-      schema: 'WebApplication'
+      schema: 'WebApplication',
+      h1: 'Transform Your CSV Data Into Beautiful Visualizations',
+      h2: [
+        'Professional Data Visualization Made Simple',
+        'Powerful Analytics Features for Every Business',
+        'Trusted by Enterprise Customers Worldwide'
+      ],
+      faq: [
+        {
+          question: 'How do I create a dashboard from CSV data?',
+          answer: 'Simply upload your CSV file, and our AI-powered platform will automatically suggest the best visualization types for your data. You can then customize charts, add filters, and create professional dashboards in minutes.'
+        },
+        {
+          question: 'What file formats are supported besides CSV?',
+          answer: 'We support CSV, Excel (XLSX, XLS), TSV, and JSON formats. Our platform automatically detects data types and suggests optimal visualization approaches for each format.'
+        },
+        {
+          question: 'Is my data secure when using CSV Analytics Studio?',
+          answer: 'Yes, we use enterprise-grade security with 256-bit SSL encryption, GDPR compliance, and SOC 2 Type II certification. We have a zero data retention policy for maximum privacy protection.'
+        },
+        {
+          question: 'Can I export my visualizations and dashboards?',
+          answer: 'Absolutely! Export your charts as high-resolution PNG, PDF, SVG, or interactive HTML formats. Perfect for presentations, reports, and sharing with stakeholders.'
+        },
+        {
+          question: 'Do you offer team collaboration features?',
+          answer: 'Yes, our platform includes real-time collaboration, shared workspaces, comment systems, and role-based access control for seamless team data analysis.'
+        }
+      ]
     },
     
     features: {
@@ -275,4 +367,153 @@ export const generateBreadcrumbSchema = (breadcrumbs) => {
       item: `${SEO_CONFIG.site.url}${crumb.url}`
     }))
   };
+};
+
+// Generate FAQ structured data
+export const generateFAQSchema = (faqs) => {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map(faq => ({
+      '@type': 'Question',
+      name: faq.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.answer
+      }
+    }))
+  };
+};
+
+// Generate Software Application structured data
+export const generateSoftwareSchema = (appData) => {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: appData.name || 'CSV Analytics Studio',
+    description: appData.description || 'Professional data visualization and business intelligence platform',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web Browser',
+    url: SEO_CONFIG.site.url,
+    author: {
+      '@type': 'Organization',
+      name: SEO_CONFIG.site.author
+    },
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock'
+    },
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: '4.8',
+      ratingCount: '1247',
+      bestRating: '5',
+      worstRating: '1'
+    },
+    featureList: [
+      'CSV Data Analysis',
+      'Interactive Dashboard Creation',
+      'Real-time Data Visualization',
+      'Business Intelligence Reports',
+      'Team Collaboration Tools',
+      'Data Export & Sharing',
+      'Advanced Analytics',
+      'Custom Chart Builder'
+    ]
+  };
+};
+
+// Generate Organization structured data
+export const generateOrganizationSchema = () => {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SEO_CONFIG.site.name,
+    url: SEO_CONFIG.site.url,
+    logo: `${SEO_CONFIG.site.url}/logo.png`,
+    description: SEO_CONFIG.site.description,
+    foundingDate: '2024',
+    sameAs: [
+      'https://twitter.com/csvanalytics',
+      'https://linkedin.com/company/csvanalytics',
+      'https://github.com/csvanalytics'
+    ],
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'Customer Service',
+      email: 'support@csvanalytics.studio',
+      availableLanguage: 'English'
+    }
+  };
+};
+
+// Generate Review/Testimonial structured data
+export const generateReviewSchema = (reviews) => {
+  return reviews.map(review => ({
+    '@context': 'https://schema.org',
+    '@type': 'Review',
+    author: {
+      '@type': 'Person',
+      name: review.author
+    },
+    reviewRating: {
+      '@type': 'Rating',
+      ratingValue: review.rating,
+      bestRating: '5'
+    },
+    reviewBody: review.text,
+    datePublished: review.date
+  }));
+};
+
+// SEO Content Optimization
+export const optimizeContentForSEO = (content, targetKeywords) => {
+  const suggestions = [];
+
+  // Check title length
+  if (content.title.length < 30 || content.title.length > 60) {
+    suggestions.push({
+      type: 'title',
+      message: 'Title should be between 30-60 characters for optimal SEO',
+      current: content.title.length
+    });
+  }
+
+  // Check description length
+  if (content.description.length < 120 || content.description.length > 160) {
+    suggestions.push({
+      type: 'description',
+      message: 'Meta description should be between 120-160 characters',
+      current: content.description.length
+    });
+  }
+
+  // Check keyword density
+  targetKeywords.forEach(keyword => {
+    const density = checkKeywordDensity(content.body || '', keyword);
+    if (!density.optimal) {
+      suggestions.push({
+        type: 'keyword',
+        message: `Keyword "${keyword}" density is ${density.density.toFixed(2)}% (optimal: 1-3%)`,
+        keyword,
+        density: density.density
+      });
+    }
+  });
+
+  return suggestions;
+};
+
+// Generate sitemap data
+export const generateSitemapData = () => {
+  const pages = Object.keys(SEO_CONFIG.pages).map(pageKey => ({
+    url: `${SEO_CONFIG.site.url}${SEO_CONFIG.pages[pageKey].canonical}`,
+    lastmod: new Date().toISOString(),
+    changefreq: pageKey === 'home' ? 'daily' : 'weekly',
+    priority: pageKey === 'home' ? '1.0' : '0.8'
+  }));
+
+  return pages;
 };

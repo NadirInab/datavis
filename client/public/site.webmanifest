@@ -1,0 +1,21 @@
+{
+  "name": "CSV Analytics Studio",
+  "short_name": "CSV Analytics",
+  "description": "Professional data visualization and business intelligence platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#5A827E",
+  "theme_color": "#5A827E",
+  "icons": [
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

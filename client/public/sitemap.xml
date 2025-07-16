@@ -1,150 +1,63 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-
-  <!-- Homepage -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://csvanalytics.studio/</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2025-07-16</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-
-  <!-- Features Page -->
   <url>
     <loc>https://csvanalytics.studio/features</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
+    <lastmod>2025-07-16</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
-
-  <!-- Pricing Page -->
   <url>
     <loc>https://csvanalytics.studio/pricing</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- Dashboard/App -->
-  <url>
-    <loc>https://csvanalytics.studio/app</loc>
-    <lastmod>2025-01-03</lastmod>
+    <lastmod>2025-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
-
-  <!-- Upload Page -->
   <url>
-    <loc>https://csvanalytics.studio/upload</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <!-- Blog Section -->
-  <url>
-    <loc>https://csvanalytics.studio/blog</loc>
-    <lastmod>2025-01-03</lastmod>
+    <loc>https://csvanalytics.studio/app</loc>
+    <lastmod>2025-07-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
-  <!-- Blog Posts -->
   <url>
-    <loc>https://csvanalytics.studio/blog/csv-data-analysis-guide</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://csvanalytics.studio/blog/business-intelligence-dashboard-best-practices</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://csvanalytics.studio/blog/data-visualization-techniques</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://csvanalytics.studio/blog/excel-vs-csv-analytics-tools</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://csvanalytics.studio/blog/small-business-data-analysis</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <!-- Landing Pages -->
-  <url>
-    <loc>https://csvanalytics.studio/for-business-analysts</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://csvanalytics.studio/for-data-scientists</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://csvanalytics.studio/for-small-business</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- Support Pages -->
-  <url>
-    <loc>https://csvanalytics.studio/help</loc>
-    <lastmod>2025-01-03</lastmod>
+    <loc>https://csvanalytics.studio/upload</loc>
+    <lastmod>2025-07-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
-
   <url>
-    <loc>https://csvanalytics.studio/tutorials</loc>
-    <lastmod>2025-01-03</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://csvanalytics.studio/blog</loc>
+    <lastmod>2025-07-16</lastmod>
+    <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
-
   <url>
-    <loc>https://csvanalytics.studio/case-studies</loc>
-    <lastmod>2025-01-03</lastmod>
+    <loc>https://csvanalytics.studio/about</loc>
+    <lastmod>2025-07-16</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.5</priority>
   </url>
-
-  <!-- Legal Pages -->
+  <url>
+    <loc>https://csvanalytics.studio/contact</loc>
+    <lastmod>2025-07-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
   <url>
     <loc>https://csvanalytics.studio/privacy</loc>
-    <lastmod>2025-01-03</lastmod>
+    <lastmod>2025-07-16</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
-
   <url>
     <loc>https://csvanalytics.studio/terms</loc>
-    <lastmod>2025-01-03</lastmod>
+    <lastmod>2025-07-16</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
-
 </urlset>
