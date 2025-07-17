@@ -19,7 +19,7 @@ import { CursorManager } from '../components/collaboration/CollaborativeCursor';
 const SharedFileViewer = () => {
   const { fileId, shareToken } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, getCurrentUserToken } = useAuth();
   
   const [file, setFile] = useState(null);
   const [permission, setPermission] = useState('none');
@@ -41,9 +41,23 @@ const SharedFileViewer = () => {
       setLoading(true);
       setError('');
 
+      // Get authentication token if user is logged in
+      let authHeader = '';
+      if (currentUser && getCurrentUserToken) {
+        try {
+          const token = await getCurrentUserToken();
+          if (token) {
+            authHeader = `Bearer ${token}`;
+          }
+        } catch (tokenError) {
+          console.warn('Failed to get auth token for shared file access:', tokenError);
+          // Continue without auth - shared files may be accessible without authentication
+        }
+      }
+
       const response = await fetch(`/api/v1/sharing/${fileId}/${shareToken}`, {
         headers: {
-          'Authorization': currentUser ? `Bearer ${await currentUser.getIdToken()}` : '',
+          'Authorization': authHeader,
           'Content-Type': 'application/json'
         }
       });

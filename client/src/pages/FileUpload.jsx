@@ -620,8 +620,17 @@ const FileUpload = () => {
         if (currentUser && !currentUser.accessToken) {
           console.warn('⚠️ User appears authenticated but no access token available');
           try {
-            const token = await currentUser.getIdToken();
-            console.log('✅ Firebase token refreshed for upload');
+            // Get token from Firebase auth directly
+            const { getAuth } = await import('firebase/auth');
+            const auth = getAuth();
+            const firebaseUser = auth.currentUser;
+
+            if (firebaseUser) {
+              const token = await firebaseUser.getIdToken();
+              console.log('✅ Firebase token refreshed for upload');
+            } else {
+              throw new Error('No Firebase user found');
+            }
           } catch (tokenError) {
             console.error('❌ Failed to get Firebase token:', tokenError);
             setError('Authentication error. Please sign in again.');

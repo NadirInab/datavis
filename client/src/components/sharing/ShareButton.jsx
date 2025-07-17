@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Share2, Copy, Check, Eye, Edit, Globe,
-  Loader2, AlertCircle, X
+  Loader2, AlertCircle, X, Clock, Users
 } from 'lucide-react';
 import Button from '../ui/Button';
 
 /**
- * Simplified Share Button Component
- * Clean, fast, and user-friendly sharing interface
+ * Share Button Component - Temporarily Disabled
+ * Showing "Coming Soon" state while collaboration features remain active
  */
 const ShareButton = ({
   fileId,
@@ -18,6 +18,9 @@ const ShareButton = ({
   shareUrl = '',
   className = ''
 }) => {
+  // Temporarily disable sharing functionality
+  const SHARING_DISABLED = true;
+
   const [showModal, setShowModal] = useState(false);
   const [accessLevel, setAccessLevel] = useState('view');
   const [isCreating, setIsCreating] = useState(false);
@@ -72,26 +75,43 @@ const ShareButton = ({
     setCopied(false);
   };
 
+  // Handle click for disabled state
+  const handleButtonClick = () => {
+    if (SHARING_DISABLED) {
+      setShowModal(true); // Show "Coming Soon" modal
+    } else {
+      setShowModal(true); // Normal functionality
+    }
+  };
+
   return (
     <>
-      {/* Enhanced Share Button */}
+      {/* Share Button - Disabled State */}
       <Button
-        onClick={() => setShowModal(true)}
-        variant={isShared ? 'success' : 'primary'}
-        icon={isShared ? Globe : Share2}
-        className={`${className} ${isShared ? 'bg-green-600 hover:bg-green-700' : 'bg-primary-600 hover:bg-primary-700'} shadow-sm`}
+        onClick={handleButtonClick}
+        variant="outline"
+        icon={SHARING_DISABLED ? Clock : (isShared ? Globe : Share2)}
+        disabled={SHARING_DISABLED}
+        className={`${className} ${
+          SHARING_DISABLED
+            ? 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed hover:bg-gray-100'
+            : isShared
+              ? 'bg-green-600 hover:bg-green-700'
+              : 'bg-primary-600 hover:bg-primary-700'
+        } shadow-sm`}
+        title={SHARING_DISABLED ? 'Share feature coming soon' : undefined}
       >
-        {isShared ? 'Shared' : 'Share'}
+        {SHARING_DISABLED ? 'Coming Soon' : (isShared ? 'Shared' : 'Share')}
       </Button>
 
-      {/* Simplified Modal */}
+      {/* Coming Soon Modal */}
       <AnimatePresence>
         {showModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={closeModal}
           >
             <motion.div
@@ -99,151 +119,70 @@ const ShareButton = ({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white/95 backdrop-blur-md rounded-xl shadow-lg border border-[#5A827E]/20 max-w-md w-full"
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between p-6 border-b border-[#5A827E]/10">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                    <Share2 className="w-5 h-5 text-primary-600" />
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#5A827E]/10 to-[#84AE92]/10 rounded-xl flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-[#5A827E]" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Share File</h3>
-                    <p className="text-sm text-gray-500">{fileName}</p>
+                    <h3 className="text-lg font-semibold text-[#5A827E]">Share Feature</h3>
+                    <p className="text-sm text-[#5A827E]/70">Coming Soon</p>
                   </div>
                 </div>
                 <button
                   onClick={closeModal}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-[#5A827E]/10 rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-[#5A827E]" />
                 </button>
               </div>
 
-              {/* Main Content */}
+              {/* Coming Soon Content */}
               <div className="p-6 space-y-6">
-                {/* Error Display */}
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700"
-                  >
-                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                    <span className="text-sm">{error}</span>
-                  </motion.div>
-                )}
-
-                {/* Share Link Display */}
-                {currentShareUrl ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2 text-green-600">
-                      <Globe className="w-5 h-5" />
-                      <span className="font-medium">Share link created!</span>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={currentShareUrl}
-                          readOnly
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm font-mono"
-                          onClick={(e) => e.target.select()}
-                        />
-                        <Button
-                          onClick={handleCopyLink}
-                          variant={copied ? "success" : "primary"}
-                          size="sm"
-                          icon={copied ? Check : Copy}
-                          className={copied ? 'bg-green-600 hover:bg-green-700' : ''}
-                        >
-                          {copied ? 'Copied!' : 'Copy'}
-                        </Button>
-                      </div>
-
-                      {copied && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className="text-center text-green-600 text-sm font-medium"
-                        >
-                          ✓ Link copied to clipboard!
-                        </motion.div>
-                      )}
-                    </div>
+                {/* Coming Soon Message */}
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-[#5A827E]/10 to-[#84AE92]/10 rounded-full flex items-center justify-center mx-auto">
+                    <Clock className="w-8 h-8 text-[#5A827E]" />
                   </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Access Level Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Who can access this file?
-                      </label>
-                      <div className="space-y-2">
-                        <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                          accessLevel === 'view' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'
-                        }`}>
-                          <input
-                            type="radio"
-                            name="access"
-                            value="view"
-                            checked={accessLevel === 'view'}
-                            onChange={(e) => setAccessLevel(e.target.value)}
-                            className="sr-only"
-                          />
-                          <Eye className="w-5 h-5 text-gray-400 mr-3" />
-                          <div>
-                            <div className="font-medium text-gray-900">View only</div>
-                            <div className="text-sm text-gray-500">Can view data and charts</div>
-                          </div>
-                        </label>
 
-                        <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                          accessLevel === 'edit' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'
-                        }`}>
-                          <input
-                            type="radio"
-                            name="access"
-                            value="edit"
-                            checked={accessLevel === 'edit'}
-                            onChange={(e) => setAccessLevel(e.target.value)}
-                            className="sr-only"
-                          />
-                          <Edit className="w-5 h-5 text-gray-400 mr-3" />
-                          <div>
-                            <div className="font-medium text-gray-900">Can edit</div>
-                            <div className="text-sm text-gray-500">Can modify data and create charts</div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-[#5A827E] mb-2">
+                      Share Feature Coming Soon
+                    </h4>
+                    <p className="text-[#5A827E]/70 leading-relaxed">
+                      We're working on an amazing file sharing experience! In the meantime,
+                      you can still collaborate in real-time with your team using our
+                      collaboration features.
+                    </p>
                   </div>
-                )}
 
-              {/* Footer Actions */}
-              <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                <Button
-                  onClick={closeModal}
-                  variant="ghost"
-                  className="text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </Button>
+                  <div className="bg-[#FAFFCA]/30 rounded-lg p-4 border border-[#B9D4AA]/20">
+                    <div className="flex items-center space-x-2 text-[#5A827E] mb-2">
+                      <Users className="w-4 h-4" />
+                      <span className="font-medium text-sm">Available Now:</span>
+                    </div>
+                    <ul className="text-sm text-[#5A827E]/80 space-y-1 text-left">
+                      <li>• Real-time collaboration</li>
+                      <li>• Live cursors and annotations</li>
+                      <li>• Follow mode for guided exploration</li>
+                      <li>• Voice comments and notes</li>
+                    </ul>
+                  </div>
+                </div>
 
-                {!currentShareUrl && (
+                {/* Footer Actions */}
+                <div className="flex justify-center pt-4 border-t border-[#5A827E]/10">
                   <Button
-                    onClick={handleCreateShare}
+                    onClick={closeModal}
                     variant="primary"
-                    isLoading={isCreating}
-                    icon={isCreating ? Loader2 : Share2}
-                    disabled={isCreating}
-                    className="bg-primary-600 hover:bg-primary-700"
+                    className="bg-[#5A827E] hover:bg-[#5A827E]/90 text-white"
                   >
-                    {isCreating ? 'Creating...' : 'Create Share Link'}
+                    Got it
                   </Button>
-                )}
-              </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>

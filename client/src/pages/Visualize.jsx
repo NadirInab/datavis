@@ -32,10 +32,12 @@ const Visualize = () => {
   // Add try/catch for auth context
   let currentUser = null;
   let isVisitor = () => false;
+  let getCurrentUserToken = null;
   try {
     const auth = useAuth();
     currentUser = auth?.currentUser;
     isVisitor = auth?.isVisitor || (() => false);
+    getCurrentUserToken = auth?.getCurrentUserToken;
   } catch (error) {
     console.error("Auth context error:", error);
     // Continue with null currentUser
@@ -123,20 +125,28 @@ const Visualize = () => {
         throw new Error('Please sign in to create share links');
       }
 
-      // Get Firebase ID token with multiple fallback methods
+      // Get Firebase ID token using the context method
       let idToken = '';
       try {
-        if (currentUser.getIdToken && typeof currentUser.getIdToken === 'function') {
-          idToken = await currentUser.getIdToken(true); // Force refresh
-          console.log('✅ Got ID token via getIdToken()');
-        } else if (currentUser.accessToken) {
-          idToken = currentUser.accessToken;
-          console.log('✅ Using accessToken');
-        } else if (currentUser.uid) {
-          // For development/testing - create a mock token
-          idToken = `mock-token-${currentUser.uid}`;
-          console.log('⚠️ Using mock token for development');
+        if (getCurrentUserToken && typeof getCurrentUserToken === 'function') {
+          // Use the getCurrentUserToken method from the auth context
+          idToken = await getCurrentUserToken();
+          console.log('✅ Got ID token via getCurrentUserToken()');
         } else {
+          // Fallback: try to get token directly from Firebase
+          const { getAuth } = await import('firebase/auth');
+          const auth = getAuth();
+          const firebaseUser = auth.currentUser;
+
+          if (firebaseUser) {
+            idToken = await firebaseUser.getIdToken();
+            console.log('✅ Got ID token via Firebase auth fallback');
+          } else {
+            throw new Error('No authenticated user found');
+          }
+        }
+
+        if (!idToken) {
           throw new Error('Unable to get authentication token');
         }
       } catch (tokenError) {
@@ -690,10 +700,10 @@ const Visualize = () => {
                 shareUrl={file.sharing?.shareUrl}
                 className="shadow-lg"
               />
-              {/* Development indicator */}
+              {/* Development indicator - Updated for disabled state */}
               {import.meta.env.DEV && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"
-                     title="Share feature available" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse"
+                     title="Share feature temporarily disabled" />
               )}
             </div>
           )}

@@ -37,17 +37,27 @@ const ShareTestPanel = () => {
         return false;
       }
 
-      // Test token retrieval
+      // Test token retrieval using proper Firebase auth
       let token = '';
-      if (currentUser.getIdToken && typeof currentUser.getIdToken === 'function') {
-        token = await currentUser.getIdToken(true);
-        addTestResult('Authentication Check', 'success', 'Firebase ID token retrieved successfully');
-      } else if (currentUser.accessToken) {
-        token = currentUser.accessToken;
-        addTestResult('Authentication Check', 'success', 'Access token found');
-      } else {
-        addTestResult('Authentication Check', 'warning', 'Using mock token for development');
-        token = `mock-token-${currentUser.uid}`;
+      try {
+        // Try to get token from Firebase auth directly
+        const { getAuth } = await import('firebase/auth');
+        const auth = getAuth();
+        const firebaseUser = auth.currentUser;
+
+        if (firebaseUser) {
+          token = await firebaseUser.getIdToken(true);
+          addTestResult('Authentication Check', 'success', 'Firebase ID token retrieved successfully');
+        } else if (currentUser?.accessToken) {
+          token = currentUser.accessToken;
+          addTestResult('Authentication Check', 'success', 'Access token found');
+        } else {
+          addTestResult('Authentication Check', 'warning', 'Using mock token for development');
+          token = `mock-token-${currentUser.id || currentUser.uid || 'test'}`;
+        }
+      } catch (tokenError) {
+        addTestResult('Authentication Check', 'error', `Token retrieval failed: ${tokenError.message}`);
+        return false;
       }
 
       return token;

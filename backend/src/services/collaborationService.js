@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
 const logger = require('../utils/logger');
+const { verifyIdToken } = require('../config/firebase');
 
 /**
  * Real-time Collaboration Service
@@ -24,6 +25,50 @@ class CollaborationService {
         credentials: true
       },
       transports: ['websocket', 'polling']
+    });
+
+    // Add authentication middleware
+    this.io.use(async (socket, next) => {
+      try {
+        const token = socket.handshake.auth?.token;
+        const userId = socket.handshake.auth?.userId;
+        const userEmail = socket.handshake.auth?.userEmail;
+
+        if (!token) {
+          // Allow connection without authentication for now, but log it
+          logger.warn('Socket connection without authentication token');
+          socket.isAuthenticated = false;
+          socket.userId = userId || 'anonymous';
+          socket.userEmail = userEmail || 'anonymous@temp.local';
+          return next();
+        }
+
+        try {
+          // Verify Firebase token
+          const decodedToken = await verifyIdToken(token);
+          socket.isAuthenticated = true;
+          socket.userId = decodedToken.uid;
+          socket.userEmail = decodedToken.email;
+          socket.firebaseUser = decodedToken;
+
+          logger.info(`Authenticated socket connection: ${decodedToken.email}`);
+          next();
+        } catch (authError) {
+          logger.error('Socket authentication failed:', authError.message);
+          socket.isAuthenticated = false;
+          socket.userId = userId || 'anonymous';
+          socket.userEmail = userEmail || 'anonymous@temp.local';
+          // Allow connection but mark as unauthenticated
+          next();
+        }
+      } catch (error) {
+        logger.error('Socket authentication middleware error:', error);
+        // Allow connection but mark as unauthenticated
+        socket.isAuthenticated = false;
+        socket.userId = 'anonymous';
+        socket.userEmail = 'anonymous@temp.local';
+        next();
+      }
     });
 
     this.setupEventHandlers();
@@ -122,12 +167,22 @@ class CollaborationService {
    */
   handleJoinSession(socket, { fileId, user }) {
     try {
+      // Check authentication status
+      if (!socket.isAuthenticated) {
+        logger.warn(`Unauthenticated user attempting to join collaboration: ${socket.userId}`);
+        socket.emit('error', {
+          message: 'Authentication failed. Please sign in again.',
+          code: 'AUTH_REQUIRED'
+        });
+        return;
+      }
+
       // Leave any existing sessions
       this.leaveAllSessions(socket);
 
       // Join the file room
       socket.join(`file-${fileId}`);
-      
+
       // Initialize session if it doesn't exist
       if (!this.activeSessions.has(fileId)) {
         this.activeSessions.set(fileId, {
@@ -143,34 +198,36 @@ class CollaborationService {
       }
 
       const session = this.activeSessions.get(fileId);
-      
-      // Add user to session
+
+      // Use authenticated user data
       const userData = {
-        id: user.id,
-        name: user.name || user.email,
+        id: socket.userId,
+        name: user.name || socket.userEmail?.split('@')[0] || 'Anonymous',
+        email: socket.userEmail,
         avatar: user.avatar,
-        color: this.generateUserColor(user.id),
+        color: this.generateUserColor(socket.userId),
         cursor: { x: 0, y: 0 },
         activeChart: null,
         isFollowing: false,
-        socketId: socket.id
+        socketId: socket.id,
+        isAuthenticated: socket.isAuthenticated
       };
 
-      session.users.set(user.id, userData);
-      this.userSessions.set(socket.id, { fileId, userId: user.id });
+      session.users.set(socket.userId, userData);
+      this.userSessions.set(socket.id, { fileId, userId: socket.userId });
 
       // Notify other users
       socket.to(`file-${fileId}`).emit('user-joined', userData);
 
       // Send current session state to new user
       socket.emit('session-state', {
-        users: Array.from(session.users.values()).filter(u => u.id !== user.id),
+        users: Array.from(session.users.values()).filter(u => u.id !== socket.userId),
         annotations: session.annotations,
         voiceComments: session.voiceComments,
         followMode: session.followMode
       });
 
-      logger.info(`User ${user.id} joined file session ${fileId}`);
+      logger.info(`User ${socket.userId} (${socket.userEmail}) joined file session ${fileId}`);
     } catch (error) {
       logger.error('Error joining session:', error);
       socket.emit('error', { message: 'Failed to join collaboration session' });
